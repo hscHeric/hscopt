@@ -4,7 +4,6 @@
 #include <vector>
 
 namespace hscopt {
-
 /**
  * @brief Tipo usado para representar o fitness (qualidade) de uma solução
  * Por padrão é double para precisão suficiente na maioria dos problemas.
@@ -29,22 +28,6 @@ using KeyType = double;
  *   KeyVector keys = {0.234, 0.876, 0.123, 0.567, 0.901}
  */
 using KeyVector = std::vector<KeyType>;
-
-/**
- * @brief Valor representando fitness infinito (solução inválida)
- *
- * Usado para marcar soluções inviáveis em problemas de minimização.
- * Exemplo: se uma solução viola restrições, seu fitness = kInfinity.
- */
-constexpr FitnessType kInfinity = 1e308;
-
-/**
- * @brief Valor representando fitness infinito negativo
- *
- * Útil para problemas de maximização ou algoritmos que precisam
- * de um valor "pior possível".
- */
-constexpr FitnessType kMinusInfinity = -1e308;
-
 }  // namespace hscopt
+
 #endif  // !HSCOPT_CORE_TYPES_HPP
