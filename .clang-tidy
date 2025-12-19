@@ -1,4 +1,3 @@
----
 Checks: >
   -*,
   bugprone-*,
@@ -32,55 +31,54 @@ HeaderFilterRegex: '.*'
 CheckOptions:
   # Nomenclatura
   - { key: readability-identifier-naming.NamespaceCase,           value: lower_case }
-  - { key: readability-identifier-naming.ClassCase,               value: CamelCase  }
-  - { key: readability-identifier-naming.StructCase,              value: CamelCase  }
-  - { key: readability-identifier-naming.EnumCase,                value: CamelCase  }
-  - { key: readability-identifier-naming.UnionCase,               value: CamelCase  }
-  
-  - { key: readability-identifier-naming.FunctionCase,            value: CamelCase  }
-  - { key: readability-identifier-naming.MethodCase,              value: CamelCase  }
+  - { key: readability-identifier-naming.ClassCase,               value: CamelCase }
+  - { key: readability-identifier-naming.StructCase,              value: CamelCase }
+  - { key: readability-identifier-naming.EnumCase,                value: CamelCase }
+  - { key: readability-identifier-naming.UnionCase,               value: CamelCase }
+
+  - { key: readability-identifier-naming.FunctionCase,            value: snake_case }
+  - { key: readability-identifier-naming.MethodCase,              value: snake_case }
   - { key: readability-identifier-naming.ParameterCase,           value: lower_case }
   - { key: readability-identifier-naming.VariableCase,            value: lower_case }
   - { key: readability-identifier-naming.LocalVariableCase,       value: lower_case }
-  
+
   # Membros privados com trailing underscore
   - { key: readability-identifier-naming.PrivateMemberCase,       value: lower_case }
-  - { key: readability-identifier-naming.PrivateMemberSuffix,     value: '_'        }
+  - { key: readability-identifier-naming.PrivateMemberSuffix,     value: '_' }
   - { key: readability-identifier-naming.ProtectedMemberCase,     value: lower_case }
-  - { key: readability-identifier-naming.ProtectedMemberSuffix,   value: '_'        }
-  
+  - { key: readability-identifier-naming.ProtectedMemberSuffix,   value: '_' }
+
   # Constantes
-  - { key: readability-identifier-naming.ConstantCase,            value: CamelCase  }
-  - { key: readability-identifier-naming.ConstantPrefix,          value: 'k'        }
-  - { key: readability-identifier-naming.GlobalConstantCase,      value: CamelCase  }
-  - { key: readability-identifier-naming.GlobalConstantPrefix,    value: 'k'        }
-  
+  - { key: readability-identifier-naming.ConstantCase,            value: CamelCase }
+  - { key: readability-identifier-naming.ConstantPrefix,          value: 'k' }
+  - { key: readability-identifier-naming.GlobalConstantCase,      value: CamelCase }
+  - { key: readability-identifier-naming.GlobalConstantPrefix,    value: 'k' }
+
   # Templates
-  - { key: readability-identifier-naming.TemplateParameterCase,   value: CamelCase  }
+  - { key: readability-identifier-naming.TemplateParameterCase,   value: CamelCase }
   - { key: readability-identifier-naming.TypeTemplateParameterCase, value: CamelCase }
-  
+
   # Enums
-  - { key: readability-identifier-naming.EnumConstantCase,        value: CamelCase  }
-  - { key: readability-identifier-naming.EnumConstantPrefix,      value: 'k'        }
-  
+  - { key: readability-identifier-naming.EnumConstantCase,        value: CamelCase }
+  - { key: readability-identifier-naming.EnumConstantPrefix,      value: 'k' }
+
   # Performance
-  - { key: performance-move-const-arg.CheckTriviallyCopyableMove, value: true       }
-  - { key: performance-unnecessary-value-param.AllowedTypes,      value: ''         }
-  
+  - { key: performance-move-const-arg.CheckTriviallyCopyableMove, value: true }
+  - { key: performance-unnecessary-value-param.AllowedTypes,      value: '' }
+
   # Readability
-  - { key: readability-function-size.LineThreshold,               value: 150        }
-  - { key: readability-function-size.StatementThreshold,          value: 200        }
-  - { key: readability-function-size.BranchThreshold,             value: 20         }
-  - { key: readability-function-size.ParameterThreshold,          value: 8          }
-  
+  - { key: readability-function-size.LineThreshold,               value: 150 }
+  - { key: readability-function-size.StatementThreshold,          value: 200 }
+  - { key: readability-function-size.BranchThreshold,             value: 20 }
+  - { key: readability-function-size.ParameterThreshold,          value: 8 }
+
   # Braces (sempre usar)
-  - { key: readability-braces-around-statements.ShortStatementLines, value: 0       }
-  
+  - { key: readability-braces-around-statements.ShortStatementLines, value: 0 }
+
   # Modernize
-  - { key: modernize-use-auto.MinTypeNameLength,                  value: 5          }
+  - { key: modernize-use-auto.MinTypeNameLength,                  value: 5 }
   - { key: modernize-loop-convert.MinConfidence,                  value: reasonable }
-  
+
   # CPP Core Guidelines
   - { key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor, value: true }
-  
 ...
