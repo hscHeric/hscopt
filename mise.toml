@@ -1,33 +1,3 @@
-min_version = "2024.9.5"
-
-[env]
-# Informações do projeto
-PROJECT_NAME = "HSC-META"
-
-# Diretório de build
-BUILD_DIR = "{{ config_root }}/build"
-
 [tools]
 cmake = "4.2.1"
-
-[tasks.configure]
-description = "Configurar o projeto"
-run = "mkdir -p $BUILD_DIR && cd $BUILD_DIR && cmake .."
-
-[tasks.build]
-description = "Construir o projeto"
-alias = "b"
-run = "cd $BUILD_DIR && make"
-
-[tasks.clean]
-description = "Limpar o diretório de build"
-alias = "c"
-run = "rm -rf $BUILD_DIR"
-
-[tasks.info]
-description = "Exibir informações sobre o projeto"
-run = '''
-echo "Projeto: $PROJECT_NAME"
-echo "Diretório de Build: $BUILD_DIR"
-echo "Descrição: Bibliotecas de metaheurísticas baseadas em chaves aleatórias"
-'''
+make = "4.4.1"
