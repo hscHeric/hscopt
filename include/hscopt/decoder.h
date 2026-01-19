@@ -41,7 +41,7 @@ typedef struct hscopt_decode_ctx {
 } hscopt_decode_ctx;
 
 /**
- * hscopt_decoder_fn - Função decoder: keys -> objetivo.
+ * função hscopt_decoder_fn - Função decoder: keys -> objetivo.
  * keys: vetor de chaves (tamanho n_keys).
  * n_keys: número de chaves.
  * ctx: contexto do decoder (instância + dados extras + workspace).
@@ -57,7 +57,7 @@ typedef double (*hscopt_decoder_fn)(const double *keys, size_t n,
                                     hscopt_decode_ctx *ctx);
 
 /**
- * hscopt_sense - Sentido do objetivo.
+ * enum hscopt_sense - Sentido do objetivo.
  * HSCOPT_MINIMIZE: menor valor é melhor.
  * HSCOPT_MAXIMIZE: maior valor é melhor.
  */
