@@ -1,3 +1,46 @@
+min_version = "2026.1.5"
+
+[env]
+PROJECT_NAME = "{{ config_root | basename }}"
+BUILD_DIR = "{{ config_root }}/build"
+
 [tools]
 cmake = "4.2.1"
 make = "4.4.1"
+
+[tasks.clean]
+description = "Limpa o diretório de build"
+alias = "c"
+run = "rm -rf $BUILD_DIR"
+
+[tasks.info]
+description = "Informações de projeto"
+run = '''
+echo "Projeto: $PROJECT_NAME"
+echo "Build: $BUILD_DIR"
+'''
+
+[tasks.configure]
+description = "Configura o projeto com CMake e gera compile_commands.json"
+alias = "cfg"
+run = '''
+mkdir -p "$BUILD_DIR"
+cmake -S . -B "$BUILD_DIR" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+ln -sf "$BUILD_DIR/compile_commands.json" "{{ config_root }}/compile_commands.json"
+'''
+
+[tasks.build]
+description = "Compila (CMake --build) e mantém compile_commands.json linkado"
+alias = "b"
+run = '''
+mise run configure
+cmake --build "$BUILD_DIR" -- -j
+'''
+
+[tasks.rebuild]
+description = "Clean + build"
+alias = "rb"
+run = '''
+mise run clean
+mise run build
+'''
