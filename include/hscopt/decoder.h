@@ -8,61 +8,75 @@ extern "C" {
 #endif
 
 /**
- * hscopt_decoder.h - Decoder (Random Keys -> valor objetivo).
+ * @file hscopt_decoder.h
+ * @brief Decoder: transforma Random Keys -> valor da função objetivo.
  *
  * A biblioteca hscopt representa uma solução por um vetor de chaves reais
  * ("random keys"). Um decoder transforma essas chaves em uma solução do
  * problema e retorna o valor da função objetivo.
  *
- * Contrato:
- * - keys aponta para um array de tamanho n_keys em [0,1).
- * - Deve ser determinístico: mesma (keys, inst, ctx) tem o mesmo retorno
- * - Não deve alocar memória no hot loop (usar ctx->ws).
- * - ctx->inst é somente leitura.
- * - Convenção: minimização. Para maximização, retornar -score.
+ * @par Contrato
+ * - @p keys aponta para um array de tamanho @p n em [0,1).
+ * - Deve ser determinístico: mesma (@p keys, @p ctx) => mesmo retorno.
+ * - Não deve alocar memória no hot loop (usar @p ctx->ws).
+ * - @p ctx->inst é somente leitura.
+ *
+ * @par Convenção do objetivo
+ * - Por padrão, usa-se minimização.
+ * - Para maximização, use @ref hscopt_sense ou retorne -score.
  */
 
+/* forward declarations (tipos opacos) */
 typedef struct hscopt_instance hscopt_instance;
 typedef struct hscopt_workspace hscopt_workspace;
 
 /**
- * struct hscopt_decode_ctx - Contexto passado ao decoder.
- * inst: dados do problema (somente leitura).
- * user: ponteiro opcional para dados do usuário (pode ser NULL).
- * ws: workspace/buffers reutilizáveis (recomendado; pode ser NULL).
+ * @struct hscopt_decode_ctx
+ * @brief Contexto passado ao decoder.
  *
  * O contexto permite que o decoder acesse a instância e reutilize buffers
  * temporários sem alocar memória a cada chamada.
  */
 typedef struct hscopt_decode_ctx {
+  /** Dados do problema (somente leitura). */
   const hscopt_instance *inst;
+
+  /** Ponteiro opcional para dados do usuário (pode ser NULL). */
   void *user;
+
+  /**
+   * Workspace / buffers reutilizáveis (recomendado; pode ser NULL).
+   * Deve ser usado para evitar malloc/free no hot loop.
+   */
   hscopt_workspace *ws;
 } hscopt_decode_ctx;
 
 /**
- * função hscopt_decoder_fn - Função decoder: keys -> objetivo.
- * keys: vetor de chaves (tamanho n_keys).
- * n_keys: número de chaves.
- * ctx: contexto do decoder (instância + dados extras + workspace).
+ * @typedef hscopt_decoder_fn
+ * @brief Assinatura de função decoder: keys -> objetivo.
  *
- * Retorna: valor da função objetivo (double).
+ * @param keys Vetor de chaves (tamanho @p n). Valores em [0,1).
+ * @param n Número de chaves.
+ * @param ctx Contexto do decoder (instância + dados extras + workspace).
  *
- * Requisitos:
- * - Não modificar keys.
- * - Não modificar ctx->inst.
+ * @return Valor da função objetivo (double).
+ *
+ * @note Requisitos:
+ * - Não modificar @p keys.
+ * - Não modificar @p ctx->inst.
  * - Evitar alocações e I/O no hot loop.
  */
 typedef double (*hscopt_decoder_fn)(const double *keys, size_t n,
                                     hscopt_decode_ctx *ctx);
 
 /**
- * enum hscopt_sense - Sentido do objetivo.
- * HSCOPT_MINIMIZE: menor valor é melhor.
- * HSCOPT_MAXIMIZE: maior valor é melhor.
+ * @enum hscopt_sense
+ * @brief Sentido do objetivo.
  */
 typedef enum hscopt_sense {
+  /** Menor valor é melhor. */
   HSCOPT_MINIMIZE = 0,
+  /** Maior valor é melhor. */
   HSCOPT_MAXIMIZE = 1
 } hscopt_sense;
 
@@ -70,4 +84,4 @@ typedef enum hscopt_sense {
 }
 #endif
 
-#endif  // !HSCOPT_DECODER_H
+#endif /* HSCOPT_DECODER_H */
