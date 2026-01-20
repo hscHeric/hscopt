@@ -7,23 +7,17 @@
 extern "C" {
 #endif
 
-/**
- * @file hscopt_decoder.h
- * @brief Decoder: transforma Random Keys -> valor da função objetivo.
- *
- * A biblioteca hscopt representa uma solução por um vetor de chaves reais
+/* A biblioteca hscopt representa uma solução por um vetor de chaves reais
  * ("random keys"). Um decoder transforma essas chaves em uma solução do
  * problema e retorna o valor da função objetivo.
  *
- * @par Contrato
- * - @p keys aponta para um array de tamanho @p n em [0,1).
+ * - keys aponta para um array de tamanho @p n em [0,1).
  * - Deve ser determinístico: mesma (@p keys, @p ctx) => mesmo retorno.
  * - Não deve alocar memória no hot loop (usar @p ctx->ws).
- * - @p ctx->inst é somente leitura.
+ * - ctx->inst é somente leitura.
  *
- * @par Convenção do objetivo
  * - Por padrão, usa-se minimização.
- * - Para maximização, use @ref hscopt_sense ou retorne -score.
+ * - Para maximização, use ref hscopt_sense ou retorne -score.
  */
 
 /* forward declarations (tipos opacos) */

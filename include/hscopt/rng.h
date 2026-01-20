@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "hscopt/defs.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -75,7 +77,7 @@ void hscopt_rng_long_jump(hscopt_rng *rng);
  * @param rng Ponteiro para o gerador.
  * @return Valor em [0,1).
  */
-static inline double hscopt_rng_next_u01(hscopt_rng *rng) {
+HSCOPT_INLINE double hscopt_rng_next_u01(hscopt_rng *rng) {
   return (hscopt_rng_next_u64(rng) >> 11) *
          (1.0 / 9007199254740992.0); /* 2^53 */
 }
