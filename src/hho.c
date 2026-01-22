@@ -187,6 +187,16 @@ HSCOPT_INLINE void hho_clamp_vec(double *x, size_t n) {
   for (size_t i = 0; i < n; ++i) x[i] = HHO_CLAMP_KEY(x[i]);
 }
 
+HSCOPT_INLINE void hho_mean_pos(hscopt_hho_ctx *ctx) {
+  memset(ctx->mean_pos, 0, ctx->dim * sizeof(double));
+  for (size_t i = 0; i < ctx->n_agents; ++i) {
+    double *x = HAWK_PTR(ctx, i);
+    for (size_t j = 0; j < ctx->dim; ++j) ctx->mean_pos[j] += x[j];
+  }
+  const double inv = 1.0 / (double)ctx->n_agents;
+  for (size_t j = 0; j < ctx->dim; ++j) ctx->mean_pos[j] *= inv;
+}
+
 int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
   if (!ctx || iters == 0) {
     return 1;
@@ -205,6 +215,7 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
   hho_eval_all(ctx);
 
   const double E1 = E1(ctx->iter, ctx->max_iters);
+  hho_mean_pos(ctx);  // calcula a pocição media do enxame
 
   // TODO: Loop de atualização dos hawks
 
