@@ -1,6 +1,9 @@
 #include "hscopt/hho.h"
 
+#include <math.h>
+
 #include "hscopt/defs.h"
+#include "hscopt/rng.h"
 
 #define LEVY_SIGMA 1.5
 
@@ -28,27 +31,42 @@ struct hscopt_hho_ctx {
   hscopt_decode_ctx *dctx;
   hscopt_rng *rng;
 
-  double *X;        // [n_agents * dim] 
-  double *fitness;  // [n_agents] 
+  double *X;        // [n_agents * dim]
+  double *fitness;  // [n_agents]
 
   double rabbit_fitness;
-  double *rabbit_keys; // [dim] 
+  double *rabbit_keys;  // [dim]
 
-  double *mean_pos; // [dim] 
-  double *tmp1;     // [dim] 
-  double *tmp2;     // [dim]
-  double *levy;     // [dim]
+  double *mean_pos;  // [dim]
+  double *tmp1;      // [dim]
+  double *tmp2;      // [dim]
+  double *levy;      // [dim]
 
   struct {
     int has_spare;
     double spare;
   } gauss;
 
-  double levy_sigma; 
+  double levy_sigma;
 };
 
 /* Box–Muller com cache */
-static HSCOPT_INLINE double hho_randn(hscopt_rng *rng, hscopt_hho_ctx *ctx) {
+HSCOPT_INLINE double hho_randn(hscopt_rng *rng, hscopt_hho_ctx *ctx) {
+  if (ctx->gauss.has_spare) {
+    ctx->gauss.has_spare = 0;
+    return ctx->gauss.spare;
+  }
+
+  double u1 = hscopt_rng_next_u01(rng);
+  double u2 = hscopt_rng_next_u01(rng);
+  if (u1 <= 0.0) {
+    u1 = 1e-12;
+  }
+
+  const double r = sqrt(-2.0 * log(u1));
+  const double theta = 2.0 * HSCOPT_PI * u2;
+
+  ctx->gauss.spare = r * sin(theta);
+  ctx->gauss.has_spare = 1;
+  return r * cos(theta);
 }
-
-
