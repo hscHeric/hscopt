@@ -25,4 +25,6 @@
     (b) = _tmp;                 \
   } while (0)
 
+#define HSCOPT_PI 3.14159265358979323846
+
 #endif /* HSCOPT_DEFS_H */
