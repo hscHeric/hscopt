@@ -217,7 +217,42 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
   const double E1 = E1(ctx->iter, ctx->max_iters);
   hho_mean_pos(ctx);  // calcula a pocição media do enxame
 
-  // TODO: Loop de atualização dos hawks
+  for (size_t i = 0; i < ctx->n_agents; ++i) {
+    double *Xi = HAWK_PTR(ctx, i);
+    const double E0 = E0(hscopt_rng_next_u01(ctx->rng));
+    const double E = E1 * E0;
+
+    if (fabs(E) >= 1.0) {
+      // q aleatorio que define a estratégia de exploração
+      const double q = hscopt_rng_next_u01(ctx->rng);
+
+      // Calculando falcao aleatorio
+      size_t r_idx =
+          (size_t)(hscopt_rng_next_u01(ctx->rng) * (double)ctx->n_agents);
+      if (r_idx >= ctx->n_agents) r_idx = ctx->n_agents - 1;
+      double *Xrand = HAWK_PTR(ctx, r_idx);
+
+      // Equação  (1) do A brief description of the HHO algorithm, está no drive
+      if (q >= 0.5) {
+        const double r1 = hscopt_rng_next_u01(ctx->rng);
+        const double r2 = hscopt_rng_next_u01(ctx->rng);
+        for (size_t j = 0; j < ctx->dim; ++j) {
+          const double val = Xrand[j] - r1 * fabs(Xrand[j] - 2.0 * r2 * Xi[j]);
+          Xi[j] = HHO_CLAMP_KEY(val);
+        }
+      } else {
+        const double r3 = hscopt_rng_next_u01(ctx->rng);
+        const double r4 = hscopt_rng_next_u01(ctx->rng);
+        const double s = r3 * r4;
+        for (size_t j = 0; j < ctx->dim; ++j) {
+          const double val = (ctx->rabbit_keys[j] - ctx->mean_pos[j]) - s;
+          Xi[j] = HHO_CLAMP_KEY(val);
+        }
+      }
+    } else {
+      // TODO: fase de intensificação
+    }
+  }
 
   return 1;
 }
