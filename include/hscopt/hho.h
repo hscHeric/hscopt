@@ -42,15 +42,16 @@ typedef struct hscopt_hho_ctx hscopt_hho_ctx;
  * Aloca os buffers internos e inicializa a população de agentes
  * (hawks) com chaves aleatórias em [0,1).
  *
- * @param n Número de chaves (dimensão do problema).
- * @param N Número de agentes (hawks) na população.
+ * @param dim Número de chaves (dimensão do problema).
+ * @param n_agents Número de agentes (hawks) na população.
  * @param decoder Função decoder (random keys -> valor da função objetivo).
  * @param dctx Contexto do decoder (pode ser NULL).
  * @param rng Gerador de números aleatórios (obrigatório).
  *
  * @return Ponteiro para o contexto HHO ou NULL em caso de erro.
  */
-hscopt_hho_ctx *hscopt_hho_create(size_t n, size_t N, hscopt_decoder_fn decoder,
+hscopt_hho_ctx *hscopt_hho_create(size_t dim, size_t n_agents,
+                                  hscopt_decoder_fn decoder,
                                   hscopt_decode_ctx *dctx, hscopt_rng *rng);
 
 /**
