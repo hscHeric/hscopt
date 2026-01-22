@@ -1,7 +1,9 @@
 #include "hscopt/hho.h"
 
 #include <math.h>
+#include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "hscopt/defs.h"
 #include "hscopt/rng.h"
@@ -137,4 +139,46 @@ void hscopt_hho_destroy(hscopt_hho_ctx *ctx) {
   free(ctx->tmp2);
   free(ctx->levy);
   free(ctx);
+}
+
+HSCOPT_INLINE void hho_eval_all(hscopt_hho_ctx *ctx) {
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(ctx->num_threads)
+#endif
+  for (ptrdiff_t i = 0; i < (ptrdiff_t)ctx->n_agents; ++i) {
+    double *x = HAWK_PTR(ctx, (size_t)i);
+    ctx->fitness[(size_t)i] = ctx->decoder(x, ctx->dim, ctx->dctx);
+  }
+
+  for (size_t i = 0; i < ctx->n_agents; ++i) {
+    if (ctx->fitness[i] < ctx->rabbit_fitness) {
+      ctx->rabbit_fitness = ctx->fitness[i];
+      memcpy(ctx->rabbit_keys, HAWK_PTR(ctx, i), ctx->dim * sizeof(double));
+    }
+  }
+}
+
+int hscopt_hho_reset(hscopt_hho_ctx *ctx) {
+  if (!ctx) {
+    return 1;
+  }
+
+  ctx->iter = 0;
+  ctx->rabbit_fitness = INFINITY;
+  ctx->gauss.has_spare = 0;
+  ctx->gauss.spare = 0;
+
+  memset(ctx->rabbit_keys, 0, ctx->dim * sizeof(double));
+
+  // inicializa os gaviões
+  for (size_t i = 0; i < ctx->n_agents; ++i) {
+    double *x = HAWK_PTR(ctx, i);
+    for (size_t j = 0; j < ctx->dim; j++) {
+      x[j] = hscopt_rng_next_u01(ctx->rng);
+    }
+  }
+
+  // calcula o fitness dos gaviões
+  hho_eval_all(ctx);
+  return 0;
 }
