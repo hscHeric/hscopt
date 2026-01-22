@@ -182,3 +182,31 @@ int hscopt_hho_reset(hscopt_hho_ctx *ctx) {
   hho_eval_all(ctx);
   return 0;
 }
+
+HSCOPT_INLINE void hho_clamp_vec(double *x, size_t n) {
+  for (size_t i = 0; i < n; ++i) x[i] = HHO_CLAMP_KEY(x[i]);
+}
+
+int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
+  if (!ctx || iters == 0) {
+    return 1;
+  }
+  if (ctx->iter >= ctx->max_iters || ctx->iter + iters > ctx->max_iters) {
+    return 2;
+  }
+
+  // loop principal de iterações
+  for (size_t it = 0; it < iters; ++iters) {
+    // clamp e eval dos gavioes para garantir que estão no hipercubo
+    for (size_t i = 0; i < ctx->n_agents; ++i) {
+      hho_clamp_vec(HAWK_PTR(ctx, i), ctx->dim);
+    }
+  }
+  hho_eval_all(ctx);
+
+  const double E1 = E1(ctx->iter, ctx->max_iters);
+
+  // TODO: Loop de atualização dos hawks
+
+  return 1;
+}
