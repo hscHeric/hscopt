@@ -74,11 +74,23 @@ HSCOPT_INLINE double hho_randn(hscopt_rng *rng, hscopt_hho_ctx *ctx) {
   return r * cos(theta);
 }
 
+HSCOPT_INLINE void hho_levy(hscopt_hho_ctx *ctx) {
+  const double inv_beta = 1.0 / 1.5;
+  for (size_t j = 0; j < ctx->dim; ++j) {
+    const double u = 0.01 * hho_randn(ctx->rng, ctx) * ctx->levy_sigma;
+    double v = hho_randn(ctx->rng, ctx);
+    const double av = fabs(v);
+    if (av < 1e-12) v = (v < 0.0 ? -1e-12 : 1e-12);
+    ctx->levy[j] = u / pow(fabs(v), inv_beta);
+  }
+}
+
 hscopt_hho_ctx *hscopt_hho_create(size_t dim, size_t n_agents,
                                   unsigned max_iters, unsigned max_threads,
                                   hscopt_decoder_fn decoder,
                                   hscopt_decode_ctx *dctx, hscopt_rng *rng) {
-  if (!decoder || !rng || dim == 0 || n_agents == 0 || max_iters == 0) {
+  if (!decoder || !rng || dim == 0 || n_agents == 0 || max_iters == 0 ||
+      max_threads == 0) {
     return NULL;
   }
 
@@ -143,7 +155,7 @@ void hscopt_hho_destroy(hscopt_hho_ctx *ctx) {
 
 HSCOPT_INLINE void hho_eval_all(hscopt_hho_ctx *ctx) {
 #ifdef _OPENMP
-#pragma omp parallel for num_threads(ctx->num_threads)
+#pragma omp parallel for num_threads(ctx->max_threads)
 #endif
   for (ptrdiff_t i = 0; i < (ptrdiff_t)ctx->n_agents; ++i) {
     double *x = HAWK_PTR(ctx, (size_t)i);
@@ -206,70 +218,169 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
   }
 
   // loop principal de iterações
-  for (size_t it = 0; it < iters; ++iters) {
+  for (size_t it = 0; it < iters; ++it) {
     // clamp e eval dos gavioes para garantir que estão no hipercubo
     for (size_t i = 0; i < ctx->n_agents; ++i) {
       hho_clamp_vec(HAWK_PTR(ctx, i), ctx->dim);
     }
-  }
-  hho_eval_all(ctx);
 
-  const double E1 = E1(ctx->iter, ctx->max_iters);
-  hho_mean_pos(ctx);  // calcula a pocição media do enxame
+    hho_eval_all(ctx);
 
-  for (size_t i = 0; i < ctx->n_agents; ++i) {
-    double *Xi = HAWK_PTR(ctx, i);
-    const double E0 = E0(hscopt_rng_next_u01(ctx->rng));
-    const double E = E1 * E0;
+    const double E1 = E1(ctx->iter, ctx->max_iters);
+    hho_mean_pos(ctx);  // calcula a pocição media do enxame
 
-    if (fabs(E) >= 1.0) {
-      // q aleatorio que define a estratégia de exploração
-      const double q = hscopt_rng_next_u01(ctx->rng);
+    for (size_t i = 0; i < ctx->n_agents; ++i) {
+      double *Xi = HAWK_PTR(ctx, i);
+      const double E0 = E0(hscopt_rng_next_u01(ctx->rng));
+      const double E = E1 * E0;
 
-      // Calculando falcao aleatorio
-      size_t r_idx =
-          (size_t)(hscopt_rng_next_u01(ctx->rng) * (double)ctx->n_agents);
-      if (r_idx >= ctx->n_agents) r_idx = ctx->n_agents - 1;
-      double *Xrand = HAWK_PTR(ctx, r_idx);
+      if (fabs(E) >= 1.0) {
+        // q aleatorio que define a estratégia de exploração
+        const double q = hscopt_rng_next_u01(ctx->rng);
 
-      // Equação  (1) do A brief description of the HHO algorithm, está no drive
-      if (q >= 0.5) {
-        const double r1 = hscopt_rng_next_u01(ctx->rng);
-        const double r2 = hscopt_rng_next_u01(ctx->rng);
-        for (size_t j = 0; j < ctx->dim; ++j) {
-          const double val = Xrand[j] - r1 * fabs(Xrand[j] - 2.0 * r2 * Xi[j]);
-          Xi[j] = HHO_CLAMP_KEY(val);
+        // Calculando falcao aleatorio
+        size_t r_idx =
+            (size_t)(hscopt_rng_next_u01(ctx->rng) * (double)ctx->n_agents);
+        if (r_idx >= ctx->n_agents) r_idx = ctx->n_agents - 1;
+        double *Xrand = HAWK_PTR(ctx, r_idx);
+
+        // Equação  (1) do A brief description of the HHO algorithm, está no
+        // drive
+        if (q >= 0.5) {
+          const double r1 = hscopt_rng_next_u01(ctx->rng);
+          const double r2 = hscopt_rng_next_u01(ctx->rng);
+          for (size_t j = 0; j < ctx->dim; ++j) {
+            const double val =
+                Xrand[j] - r1 * fabs(Xrand[j] - 2.0 * r2 * Xi[j]);
+            Xi[j] = HHO_CLAMP_KEY(val);
+          }
+        } else {
+          const double r3 = hscopt_rng_next_u01(ctx->rng);
+          const double r4 = hscopt_rng_next_u01(ctx->rng);
+          const double s = r3 * r4;
+          for (size_t j = 0; j < ctx->dim; ++j) {
+            const double val = (ctx->rabbit_keys[j] - ctx->mean_pos[j]) - s;
+            Xi[j] = HHO_CLAMP_KEY(val);
+          }
         }
       } else {
-        const double r3 = hscopt_rng_next_u01(ctx->rng);
-        const double r4 = hscopt_rng_next_u01(ctx->rng);
-        const double s = r3 * r4;
-        for (size_t j = 0; j < ctx->dim; ++j) {
-          const double val = (ctx->rabbit_keys[j] - ctx->mean_pos[j]) - s;
-          Xi[j] = HHO_CLAMP_KEY(val);
+        // TODO: fase de intensificação
+        const double r = hscopt_rng_next_u01(ctx->rng);
+
+        if (r >= 0.5 && fabs(E) >= 0.5) {
+          // Equação (4)
+          const double jump_strength =
+              2.0 * (1.0 - hscopt_rng_next_u01(ctx->rng));
+
+          for (size_t i = 0; i < ctx->dim; ++i) {
+            for (size_t j = 0; j < ctx->dim; ++j) {
+              const double val =
+                  (ctx->rabbit_keys[j] - Xi[j]) -
+                  E * fabs(jump_strength * ctx->rabbit_keys[j] - Xi[j]);
+              Xi[j] = HHO_CLAMP_KEY(val);
+            }
+          }
+        }
+
+        if (r >= 0.5 && fabs(E) < 0.5) {
+          for (size_t j = 0; j < ctx->dim; ++j) {
+            const double val =
+                ctx->rabbit_keys[j] - E * fabs(ctx->rabbit_keys[j] - Xi[j]);
+            Xi[j] = HHO_CLAMP_KEY(val);
+          }
+        }
+
+        if (r < 0.5 && fabs(E) >= 0.5) {
+          const double jump_strength =
+              2.0 * (1.0 - hscopt_rng_next_u01(ctx->rng));
+
+          for (size_t j = 0; j < ctx->dim; ++j) {
+            ctx->tmp1[j] =
+                ctx->rabbit_keys[j] -
+                E * fabs(jump_strength * ctx->rabbit_keys[j] - Xi[j]);
+          }
+          hho_clamp_vec(ctx->tmp1, ctx->dim);
+
+          const double fcur = ctx->decoder(Xi, ctx->dim, ctx->dctx);
+          const double f1 = ctx->decoder(ctx->tmp1, ctx->dim, ctx->dctx);
+
+          if (f1 < fcur) {
+            memcpy(Xi, ctx->tmp1, ctx->dim * sizeof(double));
+          } else {
+            hho_levy(ctx);
+            for (size_t j = 0; j < ctx->dim; ++j) {
+              ctx->tmp2[j] =
+                  ctx->tmp1[j] + hho_randn(ctx->rng, ctx) * ctx->levy[j];
+            }
+            hho_clamp_vec(ctx->tmp2, ctx->dim);
+
+            const double f2 = ctx->decoder(ctx->tmp2, ctx->dim, ctx->dctx);
+            if (f2 < fcur) memcpy(Xi, ctx->tmp2, ctx->dim * sizeof(double));
+          }
+        }
+
+        if (r < 0.5 && fabs(E) < 0.5) {
+          // TODO: Equação (11)
+          const double jump_strength =
+              2.0 * (1.0 - hscopt_rng_next_u01(ctx->rng));
+
+          for (size_t j = 0; j < ctx->dim; ++j) {
+            ctx->tmp1[j] = ctx->rabbit_keys[j] -
+                           E * fabs(jump_strength * ctx->rabbit_keys[j] -
+                                    ctx->mean_pos[j]);
+          }
+          hho_clamp_vec(ctx->tmp1, ctx->dim);
+
+          const double fcur = ctx->decoder(Xi, ctx->dim, ctx->dctx);
+          const double f1 = ctx->decoder(ctx->tmp1, ctx->dim, ctx->dctx);
+
+          if (f1 < fcur) {
+            memcpy(Xi, ctx->tmp1, ctx->dim * sizeof(double));
+          } else {
+            hho_levy(ctx);
+            for (size_t j = 0; j < ctx->dim; ++j) {
+              ctx->tmp2[j] =
+                  ctx->tmp1[j] + hho_randn(ctx->rng, ctx) * ctx->levy[j];
+            }
+            hho_clamp_vec(ctx->tmp2, ctx->dim);
+
+            const double f2 = ctx->decoder(ctx->tmp2, ctx->dim, ctx->dctx);
+            if (f2 < fcur) memcpy(Xi, ctx->tmp2, ctx->dim * sizeof(double));
+          }
         }
       }
-    } else {
-      // TODO: fase de intensificação
-      const double r = hscopt_rng_next_u01(ctx->rng);
-
-      if (r >= 0.5 && fabs(E) >= 0.5) {
-        // TODO:Equação (4)
-      }
-
-      if (r >= 0.5 && fabs(E) < 0.5) {
-        // TODO: Equação (6)
-      }
-
-      if (r < 0.5 && fabs(E) >= 0.5) {
-        // TODO: Equação (10)
-      }
-
-      if (r < 0.5 && fabs(E) < 0.5) {
-        // TODO: Equação (11)
-      }
     }
-  }
 
-  return 1;
+    ctx->iter += 1;
+    hho_eval_all(ctx);
+  }
+  return 0;
+}
+
+double hscopt_hho_best_fitness(const hscopt_hho_ctx *ctx) {
+  return ctx ? ctx->rabbit_fitness : INFINITY;
+}
+
+const double *hscopt_hho_best_keys(const hscopt_hho_ctx *ctx) {
+  return ctx ? ctx->rabbit_keys : NULL;
+}
+
+unsigned hscopt_hho_iteration(const hscopt_hho_ctx *ctx) {
+  return ctx ? ctx->iter : 0;
+}
+
+unsigned hscopt_hho_max_iters(const hscopt_hho_ctx *ctx) {
+  return ctx ? ctx->max_iters : 0;
+}
+
+size_t hscopt_hho_n_agents(const hscopt_hho_ctx *ctx) {
+  return ctx ? ctx->n_agents : 0;
+}
+
+size_t hscopt_hho_n_keys(const hscopt_hho_ctx *ctx) {
+  return ctx ? ctx->dim : 0;
+}
+
+unsigned hscopt_hho_max_threads(const hscopt_hho_ctx *ctx) {
+  return ctx ? ctx->max_threads : 1;
 }
