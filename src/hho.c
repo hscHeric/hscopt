@@ -251,6 +251,23 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
       }
     } else {
       // TODO: fase de intensificação
+      const double r = hscopt_rng_next_u01(ctx->rng);
+
+      if (r >= 0.5 && fabs(E) >= 0.5) {
+        // TODO:Equação (4)
+      }
+
+      if (r >= 0.5 && fabs(E) < 0.5) {
+        // TODO: Equação (6)
+      }
+
+      if (r < 0.5 && fabs(E) >= 0.5) {
+        // TODO: Equação (10)
+      }
+
+      if (r < 0.5 && fabs(E) < 0.5) {
+        // TODO: Equação (11)
+      }
     }
   }
 
