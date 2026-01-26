@@ -19,9 +19,6 @@
 /* E0 em (-1,1): 2*u - 1 */
 #define E0(u01) (2.0 * (u01) - 1.0)
 
-/* clamp para random keys em [0,1) */
-#define HHO_CLAMP_KEY(x) HSCOPT_CLAMP((x), 0.0, (1.0 - 1e-15))
-
 struct hscopt_hho_ctx {
   size_t dim;
   size_t n_agents;
@@ -196,7 +193,7 @@ int hscopt_hho_reset(hscopt_hho_ctx *ctx) {
 }
 
 HSCOPT_INLINE void hho_clamp_vec(double *x, size_t n) {
-  for (size_t i = 0; i < n; ++i) x[i] = HHO_CLAMP_KEY(x[i]);
+  for (size_t i = 0; i < n; ++i) x[i] = HSCOPT_CLAMP_KEY(x[i]);
 }
 
 HSCOPT_INLINE void hho_mean_pos(hscopt_hho_ctx *ctx) {
@@ -252,7 +249,7 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
           for (size_t j = 0; j < ctx->dim; ++j) {
             const double val =
                 Xrand[j] - r1 * fabs(Xrand[j] - 2.0 * r2 * Xi[j]);
-            Xi[j] = HHO_CLAMP_KEY(val);
+            Xi[j] = HSCOPT_CLAMP_KEY(val);
           }
         } else {
           const double r3 = hscopt_rng_next_u01(ctx->rng);
@@ -260,7 +257,7 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
           const double s = r3 * r4;
           for (size_t j = 0; j < ctx->dim; ++j) {
             const double val = (ctx->rabbit_keys[j] - ctx->mean_pos[j]) - s;
-            Xi[j] = HHO_CLAMP_KEY(val);
+            Xi[j] = HSCOPT_CLAMP_KEY(val);
           }
         }
       } else {
@@ -277,7 +274,7 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
               const double val =
                   (ctx->rabbit_keys[j] - Xi[j]) -
                   E * fabs(jump_strength * ctx->rabbit_keys[j] - Xi[j]);
-              Xi[j] = HHO_CLAMP_KEY(val);
+              Xi[j] = HSCOPT_CLAMP_KEY(val);
             }
           }
         }
@@ -286,7 +283,7 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
           for (size_t j = 0; j < ctx->dim; ++j) {
             const double val =
                 ctx->rabbit_keys[j] - E * fabs(ctx->rabbit_keys[j] - Xi[j]);
-            Xi[j] = HHO_CLAMP_KEY(val);
+            Xi[j] = HSCOPT_CLAMP_KEY(val);
           }
         }
 

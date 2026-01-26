@@ -18,6 +18,8 @@
 #endif
 
 #define HSCOPT_CLAMP(x, lo, hi) ((x) < (lo) ? (lo) : ((x) > (hi) ? (hi) : (x)))
+#define HSCOPT_CLAMP_KEY(x) HSCOPT_CLAMP((x), 0.0, (1.0 - 1e-15))
+
 #define HSCOPT_SWAP(type, a, b) \
   do {                          \
     type _tmp = (a);            \
