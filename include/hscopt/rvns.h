@@ -12,10 +12,10 @@ extern "C" {
 
 typedef struct hscopt_rvns_ctx hscopt_rvns_ctx;
 
-hscopt_rvns_ctx *hscopt_hho_create(const double *x0, size_t dim, size_t k_max,
-                                   unsigned max_iters, unsigned max_threads,
-                                   hscopt_decoder_fn decoder,
-                                   hscopt_decode_ctx *dctx, hscopt_rng *rng);
+hscopt_rvns_ctx *hscopt_rvns_create(const double *x0, size_t dim, size_t k_max,
+                                    unsigned max_iters, unsigned max_threads,
+                                    hscopt_decoder_fn decoder,
+                                    hscopt_decode_ctx *dctx, hscopt_rng *rng);
 
 void hscopt_rvns_destroy(hscopt_rvns_ctx *ctx);
 
