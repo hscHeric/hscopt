@@ -1,6 +1,7 @@
 #ifndef HSCOPT_RNG_H
 #define HSCOPT_RNG_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "hscopt/defs.h"
@@ -80,6 +81,26 @@ void hscopt_rng_long_jump(hscopt_rng *rng);
 HSCOPT_INLINE double hscopt_rng_next_u01(hscopt_rng *rng) {
   return (hscopt_rng_next_u64(rng) >> 11) *
          (1.0 / 9007199254740992.0); /* 2^53 */
+}
+
+HSCOPT_INLINE size_t hscopt_rng_random_index(hscopt_rng *rng, size_t n) {
+  if (HSCOPT_UNLIKELY(n == 0)) return 0;
+
+  uint64_t x = hscopt_rng_next_u64(rng);
+  __uint128_t m = (__uint128_t)x * (__uint128_t)n;
+  uint64_t l = (uint64_t)m;
+
+  if (HSCOPT_UNLIKELY(l < (uint64_t)n)) {
+    // Calcula o threshold: (2^64 % n)
+    uint64_t t = -((uint64_t)n) % (uint64_t)n;
+    while (l < t) {
+      x = hscopt_rng_next_u64(rng);
+      m = (__uint128_t)x * (__uint128_t)n;
+      l = (uint64_t)m;
+    }
+  }
+
+  return (size_t)(m >> 64);
 }
 
 #ifdef __cplusplus
