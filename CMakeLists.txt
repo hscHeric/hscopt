@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_library(hscopt_rng STATIC
   src/rng.c
+  src/hho.c
 )
 
 target_include_directories(hscopt_rng PUBLIC
