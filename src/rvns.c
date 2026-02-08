@@ -145,3 +145,15 @@ size_t hscopt_rvns_k_max(const hscopt_rvns_ctx *ctx) {
 unsigned hscopt_rvns_max_threads(const hscopt_rvns_ctx *ctx) {
   return ctx ? ctx->eff_threads : 1u;
 }
+
+// Shaking em N_k(x), primeiro copia x para y e pertuba k posições
+HSCOPT_INLINE void rvns_shake(double *y, const double *x, size_t dim, size_t k,
+                              hscopt_rng *rng) {
+  memcpy(y, x, dim * sizeof(double));
+  if (k > dim) k = dim;
+  for (size_t t = 0; t < k; ++t) {
+    size_t j = (size_t)(hscopt_rng_next_u01(rng) * (double)dim);
+    if (j >= dim) j = dim - 1;
+    y[j] = HSCOPT_CLAMP_KEY(hscopt_rng_next_u01(rng));
+  }
+}
