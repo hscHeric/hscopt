@@ -10,29 +10,140 @@
 extern "C" {
 #endif
 
+/**
+ * @struct hscopt_rvns_ctx
+ * @brief Contexto opaco do algoritmo RVNS.
+ *
+ * O contexto encapsula:
+ * - parâmetros (dimensão, k_max, limites de iteração),
+ * - solução incumbente e melhor solução encontrada,
+ * - contador de iterações,
+ * - referências ao RNG e ao decoder.
+ *
+ * O usuário não deve acessar nem modificar diretamente os campos internos.
+ */
 typedef struct hscopt_rvns_ctx hscopt_rvns_ctx;
 
+/**
+ * @brief Cria e inicializa um contexto do RVNS.
+ *
+ * Esta função:
+ * - aloca o contexto e buffers internos,
+ * - define a solução inicial:
+ *   - se @p x0 != NULL, copia @p x0,
+ *   - se @p x0 == NULL, gera uma solução aleatória em [0,1),
+ * - avalia a solução inicial e inicializa o melhor conhecido.
+ *
+ * @param x0 Solução inicial (vetor de tamanho @p dim) ou NULL.
+ * @param dim Dimensão do vetor de chaves.
+ * @param k_max Maior vizinhança a ser reconhecida (>= 1).
+ * @param max_iters Número máximo de iterações configurado para o contexto.
+ * @param max_threads Número máximo de threads para avaliação (se OpenMP estiver
+ * ativo).
+ * @param decoder Função decoder responsável por avaliar uma solução.
+ * @param dctx Contexto do decoder (pode ser NULL).
+ * @param rng Gerador de números aleatórios (obrigatório).
+ *
+ * @return Ponteiro para o contexto RVNS em caso de sucesso, ou NULL em erro.
+ */
 hscopt_rvns_ctx *hscopt_rvns_create(const double *x0, size_t dim, size_t k_max,
                                     unsigned max_iters, unsigned max_threads,
                                     hscopt_decoder_fn decoder,
                                     hscopt_decode_ctx *dctx, hscopt_rng *rng);
 
+/**
+ * @brief Libera todos os recursos associados ao contexto RVNS.
+ *
+ * Após esta chamada, o ponteiro @p ctx torna-se inválido.
+ *
+ * @param ctx Contexto RVNS.
+ */
 void hscopt_rvns_destroy(hscopt_rvns_ctx *ctx);
 
+/**
+ * @brief Reinicializa o RVNS com uma nova solução inicial.
+ *
+ * Esta função:
+ * - define a solução incumbente:
+ *   - se @p x0 != NULL, copia @p x0,
+ *   - se @p x0 == NULL, gera uma solução aleatória em [0,1),
+ * - reinicia o contador de iterações,
+ * - reinicia o melhor fitness encontrado.
+ *
+ * @param ctx Contexto RVNS.
+ * @param x0 Solução inicial (vetor de tamanho @p dim) ou NULL.
+ * @return 0 em sucesso, valor diferente de 0 em erro.
+ */
 int hscopt_rvns_reset(hscopt_rvns_ctx *ctx, const double *x0);
 
+/**
+ * @brief Executa um número de iterações do RVNS.
+ *
+ * Cada iteração executa, conceitualmente:
+ * - escolha/uso do k atual,
+ * - *shaking* para gerar x' em N_k(x),
+ * - avaliação via decoder,
+ * - regra de aceitação:
+ *   - se melhora, aceita e reinicia k,
+ *   - senão incrementa k (até k_max).
+ *
+ * @param ctx Contexto RVNS.
+ * @param iters Número de iterações a executar (>= 1).
+ *
+ * @return 0 em sucesso, valor diferente de 0 em erro.
+ */
 int hscopt_rvns_iterate(hscopt_rvns_ctx *ctx, unsigned iters);
 
+/**
+ * @brief Retorna o melhor valor da função objetivo encontrado.
+ *
+ * @param ctx Contexto RVNS.
+ * @return Melhor fitness encontrado até o momento.
+ */
 double hscopt_rvns_best_fitness(const hscopt_rvns_ctx *ctx);
 
+/**
+ * @brief Retorna o vetor de chaves da melhor solução encontrada.
+ *
+ * @param ctx Contexto RVNS.
+ * @return Ponteiro para o vetor de keys da melhor solução.
+ *
+ * @note
+ * - O ponteiro retornado é válido enquanto o contexto existir
+ *   e não for chamada hscopt_rvns_reset() ou hscopt_rvns_iterate().
+ */
 const double *hscopt_rvns_best_keys(const hscopt_rvns_ctx *ctx);
 
+/**
+ * @brief Retorna o número da iteração atual.
+ *
+ * @param ctx Contexto RVNS.
+ * @return Índice da iteração atual (inicia em 0).
+ */
 unsigned hscopt_rvns_iteration(const hscopt_rvns_ctx *ctx);
 
+/**
+ * @brief Retorna a dimensão do problema (número de chaves).
+ *
+ * @param ctx Contexto RVNS.
+ * @return Dimensão (dim).
+ */
 size_t hscopt_rvns_dim(const hscopt_rvns_ctx *ctx);
 
+/**
+ * @brief Retorna o máximo de pertucação.
+ *
+ * @param ctx Contexto RVNS.
+ * @return k_max.
+ */
 size_t hscopt_rvns_k_max(const hscopt_rvns_ctx *ctx);
 
+/**
+ * @brief Retorna o número máximo de threads configurado para avaliação.
+ *
+ * @param ctx Contexto RVNS.
+ * @return Número máximo de threads.
+ */
 unsigned hscopt_rvns_max_threads(const hscopt_rvns_ctx *ctx);
 
 #ifdef __cplusplus

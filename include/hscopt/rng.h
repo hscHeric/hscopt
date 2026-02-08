@@ -11,78 +11,81 @@ extern "C" {
 #endif
 
 /**
- * @file hscopt_rng.h
- * @brief RNG rápido baseado em xoshiro256**.
- *
- * Implementa um gerador pseudo-aleatório de alta performance (xoshiro256**),
- *
- * @note
- * - O estado do xoshiro256** possui 256 bits (4x uint64_t).
- * - O estado não pode ser todo zero.
- * - Não é thread-safe se a mesma instância for compartilhada entre threads.
- */
-
-/**
  * @struct hscopt_rng
- * @brief Estado do RNG xoshiro256**.
+ * @brief Estrutura do gerador de números pseudoaleatórios.
  *
- * Cada instância mantém seu próprio estado.
+ * Armazena o estado interno do RNG.
+ * O conteúdo da estrutura não deve ser acessado diretamente pelo usuário.
  */
 typedef struct hscopt_rng {
-  /**
-   * Estado interno do gerador (256 bits).
-   * Não deve ser todo zero.
-   */
   uint64_t s[4];
 } hscopt_rng;
 
 /**
- * @brief Inicializa o RNG com uma seed 64-bit.
+ * @brief Inicializa o RNG com uma semente.
  *
- * A seed é expandida internamente para 256 bits usando SplitMix64.
+ * Esta função inicializa o estado interno do gerador a partir de uma
+ * semente de 64 bits.
  *
- * @param rng Ponteiro para o gerador.
- * @param seed Valor inicial. Pode ser 0.
+ * @param rng Ponteiro para o RNG.
+ * @param seed Valor da semente.
  */
 void hscopt_rng_seed(hscopt_rng *rng, uint64_t seed);
 
 /**
- * @brief Gera o próximo número pseudo-aleatório (64-bit).
+ * @brief Gera o próximo número pseudoaleatório de 64 bits.
  *
- * @param rng Ponteiro para o gerador.
- * @return Próximo valor pseudo-aleatório.
+ * @param rng Ponteiro para o RNG.
+ * @return Valor pseudoaleatório no intervalo [0, 2^64 − 1].
  */
 uint64_t hscopt_rng_next_u64(hscopt_rng *rng);
 
 /**
- * @brief Avança o estado em 2^128 passos (subsequência não sobreposta).
+ * @brief Avança o estado do RNG para uma subsequência distante.
  *
- * Útil para paralelismo: gera uma nova subsequência independente.
+ * Útil para criar subsequências estatisticamente independentes,
+ * por exemplo, em ambientes paralelos.
  *
- * @param rng Ponteiro para o gerador.
+ * @param rng Ponteiro para o RNG.
  */
 void hscopt_rng_jump(hscopt_rng *rng);
 
 /**
- * @brief Avança o estado em 2^192 passos (subsequência não sobreposta).
+ * @brief Avança o estado do RNG para uma subsequência ainda mais distante.
  *
- * Útil para paralelismo distribuído.
+ * Garante separação ainda maior entre subsequências do gerador.
  *
- * @param rng Ponteiro para o gerador.
+ * @param rng Ponteiro para o RNG.
  */
 void hscopt_rng_long_jump(hscopt_rng *rng);
 
 /**
- * @brief Gera um double uniforme em [0,1).
+ * @brief Gera um número real uniforme em [0,1).
  *
- * @param rng Ponteiro para o gerador.
- * @return Valor em [0,1).
+ * O valor retornado possui precisão de 53 bits, adequada para
+ * operações em ponto flutuante do tipo double.
+ *
+ * @param rng Ponteiro para o RNG.
+ * @return Número pseudoaleatório no intervalo [0,1).
  */
 HSCOPT_INLINE double hscopt_rng_next_u01(hscopt_rng *rng) {
   return (hscopt_rng_next_u64(rng) >> 11) *
          (1.0 / 9007199254740992.0); /* 2^53 */
 }
 
+/**
+ * @brief Gera um índice inteiro uniforme no intervalo [0, n).
+ *
+ * Esta função utiliza multiplicação em 128 bits para evitar viés
+ * de módulo (*modulo bias*), garantindo distribuição uniforme.
+ *
+ * @param rng Ponteiro para o RNG.
+ * @param n Limite superior exclusivo do intervalo.
+ * @return Índice pseudoaleatório no intervalo [0, n).
+ *
+ * @note
+ * - Se @p n == 0, o valor retornado é 0.
+ */
 HSCOPT_INLINE size_t hscopt_rng_random_index(hscopt_rng *rng, size_t n) {
   if (HSCOPT_UNLIKELY(n == 0)) return 0;
 

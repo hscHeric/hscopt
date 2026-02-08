@@ -12,6 +12,7 @@ extern "C" {
  */
 
 #include "decoder.h"
+#include "defs.h"
 #include "hho.h"
 #include "rng.h"
 #include "rvns.h"
