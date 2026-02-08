@@ -381,3 +381,17 @@ size_t hscopt_hho_n_keys(const hscopt_hho_ctx *ctx) {
 unsigned hscopt_hho_max_threads(const hscopt_hho_ctx *ctx) {
   return ctx ? ctx->max_threads : 1;
 }
+
+int hscopt_hho_try_update_rabbit(hscopt_hho_ctx *ctx, const double *keys) {
+  if (!ctx || !keys || !ctx->decoder) {
+    return -1;
+  }
+
+  const double f = ctx->decoder(keys, ctx->dim, ctx->dctx);
+  if (f < ctx->rabbit_fitness) {
+    ctx->rabbit_fitness = f;
+    memcpy(ctx->rabbit_keys, keys, ctx->dim * sizeof(double));
+    return 1;
+  }
+  return 0;
+}
