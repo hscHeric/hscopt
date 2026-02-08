@@ -157,3 +157,59 @@ HSCOPT_INLINE void rvns_shake(double *y, const double *x, size_t dim, size_t k,
     y[j] = HSCOPT_CLAMP_KEY(hscopt_rng_next_u01(rng));
   }
 }
+
+int hscopt_rvns_iterate(hscopt_rvns_ctx *ctx, unsigned iters) {
+  if (!ctx || iters == 0) {
+    return 1;  // o núemro de itereações executadas não pode ser 0
+  }
+
+  if (ctx->iter >= ctx->max_iters) {
+    return 2;  // iter já ultrapassou o maximo de iterações
+  }
+  if (ctx->iter + iters > ctx->max_iters) {
+    return 2;  // passa o máximo ao executar as iterações solicitadas
+  }
+
+  for (unsigned it = 0; it < iters; ++it) {
+    size_t k = 1;  // nível da pertubação
+
+    while (k <= ctx->k_max) {
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(ctx->eff_threads)
+#endif
+      for (int tid_i = 0; tid_i < (int)ctx->eff_threads; ++tid_i) {
+        const unsigned tid = (unsigned)tid_i;
+        double *y = CAND_PTR(ctx, tid);
+        rvns_shake(y, ctx->x, ctx->dim, k, &ctx->rng_tls[tid]);
+        ctx->cand_fit[tid] = ctx->decoder(y, ctx->dim, ctx->dctx);
+      }
+
+      unsigned best_tid = 0;
+      double fy_best = ctx->cand_fit[0];
+      for (unsigned tid = 1; tid < ctx->eff_threads; ++tid) {
+        const double fy = ctx->cand_fit[tid];
+        if (fy < fy_best) {
+          fy_best = fy;
+          best_tid = tid;
+        }
+      }
+
+      if (fy_best < ctx->fx) {
+        memcpy(ctx->x, CAND_PTR(ctx, best_tid), ctx->dim * sizeof(double));
+        ctx->fx = fy_best;
+
+        if (ctx->fx < ctx->fbest) {
+          ctx->fbest = ctx->fx;
+          memcpy(ctx->best, ctx->x, ctx->dim * sizeof(double));
+        }
+
+        k = 1; /* volta para N_1 */
+      } else {
+        ++k;
+      }
+    }
+
+    ++ctx->iter;
+  }
+  return 0;
+}
