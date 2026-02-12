@@ -6,7 +6,6 @@ BUILD_DIR = "{{ config_root }}/build"
 
 [tools]
 cmake = "4.2.1"
-make = "4.4.1"
 
 [tasks.clean]
 description = "Limpa o diretório de build"
