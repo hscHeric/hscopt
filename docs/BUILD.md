@@ -96,4 +96,5 @@ HSCOPT_ENABLE_LTO=OFF HSCOPT_ENABLE_NATIVE=OFF mise run build
 Para usar um alocador customizado (ex.: alinhado), defina um `hscopt_allocator`
 e passe para as funcoes `hscopt_hho_create_with_allocator` ou
 `hscopt_rvns_create_with_allocator`, ou configure o alocador global via
-`hscopt_set_allocator`.
+`hscopt_set_allocator`. Para voltar ao padrao (malloc/calloc/free), chame
+`hscopt_set_allocator(NULL)`.

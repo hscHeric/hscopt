@@ -65,9 +65,13 @@ void hscopt_allocator_default(hscopt_allocator *out);
 /**
  * @brief Define um alocador global para a biblioteca.
  *
+ * Se @p alloc for NULL, restaura o alocador default (malloc/calloc/free).
+ *
+ * @return 0 em sucesso, valor diferente de 0 em erro.
+ *
  * @note Nao e thread-safe para chamadas concorrentes com criacao de contextos.
  */
-void hscopt_set_allocator(const hscopt_allocator *alloc);
+int hscopt_set_allocator(const hscopt_allocator *alloc);
 
 /**
  * @brief Obtém o alocador global atual.

@@ -33,9 +33,18 @@ void hscopt_allocator_default(hscopt_allocator *out) {
   *out = g_allocator;
 }
 
-void hscopt_set_allocator(const hscopt_allocator *alloc) {
-  if (!alloc || !alloc->alloc || !alloc->calloc || !alloc->free) return;
+int hscopt_set_allocator(const hscopt_allocator *alloc) {
+  if (!alloc) {
+    g_allocator.alloc = hscopt_default_alloc;
+    g_allocator.calloc = hscopt_default_calloc;
+    g_allocator.free = hscopt_default_free;
+    g_allocator.alignment = 0;
+    g_allocator.user = NULL;
+    return 0;
+  }
+  if (!alloc->alloc || !alloc->calloc || !alloc->free) return 1;
   g_allocator = *alloc;
+  return 0;
 }
 
 void hscopt_get_allocator(hscopt_allocator *out) {

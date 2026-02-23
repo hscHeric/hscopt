@@ -79,6 +79,7 @@ Exemplos disponiveis:
 - O clamp do dominio e aplicado internamente nas iteracoes do HHO e RVNS.
 - A avaliacao e feita via `hscopt_decoder_fn`.
 - E possivel usar um alocador customizado via `hscopt_allocator`.
+- Para restaurar o default (malloc/calloc/free), use `hscopt_set_allocator(NULL)`.
 
 ## Contribuindo
 
