@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "hscopt/alloc.h"
 #include "hscopt/defs.h"
 #include "hscopt/rng.h"
 
@@ -46,6 +47,8 @@ struct hscopt_hho_ctx {
   } gauss;
 
   double levy_sigma;
+
+  hscopt_allocator alloc;
 };
 
 HSCOPT_INLINE double hho_randn(hscopt_rng *rng, hscopt_hho_ctx *ctx) {
@@ -118,14 +121,34 @@ hscopt_hho_ctx *hscopt_hho_create(size_t dim, size_t n_agents,
                                   unsigned max_iters, unsigned max_threads,
                                   hscopt_decoder_fn decoder,
                                   hscopt_decode_ctx *dctx, hscopt_rng *rng) {
+  return hscopt_hho_create_with_allocator(dim, n_agents, max_iters, max_threads,
+                                          decoder, dctx, rng, NULL);
+}
+
+hscopt_hho_ctx *hscopt_hho_create_with_allocator(
+    size_t dim, size_t n_agents, unsigned max_iters, unsigned max_threads,
+    hscopt_decoder_fn decoder, hscopt_decode_ctx *dctx, hscopt_rng *rng,
+    const hscopt_allocator *alloc) {
   if (!decoder || !rng || dim == 0 || n_agents == 0 || max_iters == 0) {
     return NULL;
   }
 
-  hscopt_hho_ctx *ctx = (hscopt_hho_ctx *)calloc(1, sizeof(*ctx));
+  hscopt_allocator resolved;
+  if (alloc) {
+    if (!alloc->alloc || !alloc->calloc || !alloc->free) {
+      return NULL;
+    }
+    resolved = *alloc;
+  } else {
+    hscopt_get_allocator(&resolved);
+  }
+
+  hscopt_hho_ctx *ctx =
+      (hscopt_hho_ctx *)hscopt_calloc(&resolved, 1, sizeof(*ctx));
   if (!ctx) {
     return NULL;
   }
+  ctx->alloc = resolved;
 
   ctx->dim = dim;
   ctx->n_agents = n_agents;
@@ -142,13 +165,15 @@ hscopt_hho_ctx *hscopt_hho_create(size_t dim, size_t n_agents,
   ctx->dctx = dctx;
   ctx->rng = rng;
 
-  ctx->X = (double *)malloc(sizeof(double) * (dim * n_agents));
-  ctx->fitness = (double *)malloc(sizeof(double) * n_agents);
-  ctx->rabbit_keys = (double *)malloc(sizeof(double) * dim);
-  ctx->mean_pos = (double *)malloc(sizeof(double) * dim);
-  ctx->tmp1 = (double *)malloc(sizeof(double) * dim);
-  ctx->tmp2 = (double *)malloc(sizeof(double) * dim);
-  ctx->levy = (double *)malloc(sizeof(double) * dim);
+  ctx->X =
+      (double *)hscopt_alloc(&ctx->alloc, sizeof(double) * (dim * n_agents));
+  ctx->fitness =
+      (double *)hscopt_alloc(&ctx->alloc, sizeof(double) * n_agents);
+  ctx->rabbit_keys = (double *)hscopt_alloc(&ctx->alloc, sizeof(double) * dim);
+  ctx->mean_pos = (double *)hscopt_alloc(&ctx->alloc, sizeof(double) * dim);
+  ctx->tmp1 = (double *)hscopt_alloc(&ctx->alloc, sizeof(double) * dim);
+  ctx->tmp2 = (double *)hscopt_alloc(&ctx->alloc, sizeof(double) * dim);
+  ctx->levy = (double *)hscopt_alloc(&ctx->alloc, sizeof(double) * dim);
 
   if (!ctx->X || !ctx->fitness || !ctx->rabbit_keys || !ctx->mean_pos ||
       !ctx->tmp1 || !ctx->tmp2 || !ctx->levy) {
@@ -176,14 +201,14 @@ hscopt_hho_ctx *hscopt_hho_create(size_t dim, size_t n_agents,
 void hscopt_hho_destroy(hscopt_hho_ctx *ctx) {
   if (!ctx) return;
 
-  free(ctx->X);
-  free(ctx->fitness);
-  free(ctx->rabbit_keys);
-  free(ctx->mean_pos);
-  free(ctx->tmp1);
-  free(ctx->tmp2);
-  free(ctx->levy);
-  free(ctx);
+  hscopt_free(&ctx->alloc, ctx->X);
+  hscopt_free(&ctx->alloc, ctx->fitness);
+  hscopt_free(&ctx->alloc, ctx->rabbit_keys);
+  hscopt_free(&ctx->alloc, ctx->mean_pos);
+  hscopt_free(&ctx->alloc, ctx->tmp1);
+  hscopt_free(&ctx->alloc, ctx->tmp2);
+  hscopt_free(&ctx->alloc, ctx->levy);
+  hscopt_free(&ctx->alloc, ctx);
 }
 
 int hscopt_hho_reset(hscopt_hho_ctx *ctx) {

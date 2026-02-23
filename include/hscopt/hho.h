@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 
+#include "hscopt/alloc.h"
 #include "hscopt/decoder.h"
 #include "hscopt/rng.h"
 
@@ -50,6 +51,19 @@ hscopt_hho_ctx *hscopt_hho_create(size_t dim, size_t n_agents,
                                   unsigned max_iters, unsigned max_threads,
                                   hscopt_decoder_fn decoder,
                                   hscopt_decode_ctx *dctx, hscopt_rng *rng);
+
+/**
+ * @brief Cria e inicializa um contexto do HHO com alocador customizado.
+ *
+ * Se @p alloc for NULL, usa o alocador global.
+ *
+ * @param alloc Alocador customizado (opcional).
+ * @return Ponteiro para o contexto HHO em caso de sucesso, ou NULL em erro.
+ */
+hscopt_hho_ctx *hscopt_hho_create_with_allocator(
+    size_t dim, size_t n_agents, unsigned max_iters, unsigned max_threads,
+    hscopt_decoder_fn decoder, hscopt_decode_ctx *dctx, hscopt_rng *rng,
+    const hscopt_allocator *alloc);
 
 /**
  * @brief Libera todos os recursos associados ao contexto HHO.

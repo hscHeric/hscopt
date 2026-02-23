@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "hscopt/alloc.h"
 #include "hscopt/decoder.h"
 #include "hscopt/rng.h"
 
@@ -26,6 +27,8 @@ struct hscopt_rvns_ctx {
   double fbest;               // função objetivo do melhor global
   double *cand_keys;          // candidatos de tamanho [dim * eff_threads]
   double *cand_fit;           // candidatos de tamanho [eff_threads]
+
+  hscopt_allocator alloc;
 };
 
 int hscopt_rvns_reset(hscopt_rvns_ctx *ctx, const double *x0) {
@@ -54,26 +57,47 @@ int hscopt_rvns_reset(hscopt_rvns_ctx *ctx, const double *x0) {
 
 void hscopt_rvns_destroy(hscopt_rvns_ctx *ctx) {
   if (!ctx) return;
-  free(ctx->rng_tls);
-  free(ctx->x);
-  free(ctx->best);
-  free(ctx->cand_keys);
-  free(ctx->cand_fit);
-  free(ctx);
+  hscopt_free(&ctx->alloc, ctx->rng_tls);
+  hscopt_free(&ctx->alloc, ctx->x);
+  hscopt_free(&ctx->alloc, ctx->best);
+  hscopt_free(&ctx->alloc, ctx->cand_keys);
+  hscopt_free(&ctx->alloc, ctx->cand_fit);
+  hscopt_free(&ctx->alloc, ctx);
 }
 
 hscopt_rvns_ctx *hscopt_rvns_create(const double *x0, size_t dim, size_t k_max,
                                     unsigned max_iters, unsigned max_threads,
                                     hscopt_decoder_fn decoder,
                                     hscopt_decode_ctx *dctx, hscopt_rng *rng) {
+  return hscopt_rvns_create_with_allocator(x0, dim, k_max, max_iters,
+                                           max_threads, decoder, dctx, rng,
+                                           NULL);
+}
+
+hscopt_rvns_ctx *hscopt_rvns_create_with_allocator(
+    const double *x0, size_t dim, size_t k_max, unsigned max_iters,
+    unsigned max_threads, hscopt_decoder_fn decoder, hscopt_decode_ctx *dctx,
+    hscopt_rng *rng, const hscopt_allocator *alloc) {
   if (!decoder || !rng || max_iters == 0 || k_max == 0 || dim == 0) {
     return NULL;
   }
 
-  hscopt_rvns_ctx *ctx = (hscopt_rvns_ctx *)calloc(1, sizeof(*ctx));
+  hscopt_allocator resolved;
+  if (alloc) {
+    if (!alloc->alloc || !alloc->calloc || !alloc->free) {
+      return NULL;
+    }
+    resolved = *alloc;
+  } else {
+    hscopt_get_allocator(&resolved);
+  }
+
+  hscopt_rvns_ctx *ctx =
+      (hscopt_rvns_ctx *)hscopt_calloc(&resolved, 1, sizeof(*ctx));
   if (!ctx) {
     return NULL;
   };
+  ctx->alloc = resolved;
 
   ctx->dim = dim;
   ctx->k_max = k_max;
@@ -89,11 +113,12 @@ hscopt_rvns_ctx *hscopt_rvns_create(const double *x0, size_t dim, size_t k_max,
 
   ctx->decoder = decoder;
   ctx->dctx = dctx;
-  ctx->x = (double *)malloc(dim * sizeof(double));
-  ctx->best = (double *)malloc(dim * sizeof(double));
-  ctx->cand_keys =
-      (double *)malloc((size_t)ctx->eff_threads * dim * sizeof(double));
-  ctx->cand_fit = (double *)malloc((size_t)ctx->eff_threads * sizeof(double));
+  ctx->x = (double *)hscopt_alloc(&ctx->alloc, dim * sizeof(double));
+  ctx->best = (double *)hscopt_alloc(&ctx->alloc, dim * sizeof(double));
+  ctx->cand_keys = (double *)hscopt_alloc(
+      &ctx->alloc, (size_t)ctx->eff_threads * dim * sizeof(double));
+  ctx->cand_fit = (double *)hscopt_alloc(
+      &ctx->alloc, (size_t)ctx->eff_threads * sizeof(double));
 
   if (!ctx->x || !ctx->best || !ctx->cand_keys || !ctx->cand_fit) {
     hscopt_rvns_destroy(ctx);
@@ -101,8 +126,8 @@ hscopt_rvns_ctx *hscopt_rvns_create(const double *x0, size_t dim, size_t k_max,
   }
 
   // alocação das instâncias de RNG
-  ctx->rng_tls =
-      (hscopt_rng *)calloc((size_t)ctx->eff_threads, sizeof(hscopt_rng));
+  ctx->rng_tls = (hscopt_rng *)hscopt_calloc(
+      &ctx->alloc, (size_t)ctx->eff_threads, sizeof(hscopt_rng));
   if (!ctx->rng_tls) {
     hscopt_rvns_destroy(ctx);
     return NULL;

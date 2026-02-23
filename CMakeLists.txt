@@ -9,6 +9,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(ProjectSetup)
 
 add_library(hscopt STATIC
+  src/alloc.c
   src/rng.c
   src/hho.c
   src/rvns.c

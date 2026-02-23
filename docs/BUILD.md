@@ -90,3 +90,10 @@ As flags podem ser alteradas via variaveis de ambiente, por exemplo:
 ```bash
 HSCOPT_ENABLE_LTO=OFF HSCOPT_ENABLE_NATIVE=OFF mise run build
 ```
+
+## Alocador customizado
+
+Para usar um alocador customizado (ex.: alinhado), defina um `hscopt_allocator`
+e passe para as funcoes `hscopt_hho_create_with_allocator` ou
+`hscopt_rvns_create_with_allocator`, ou configure o alocador global via
+`hscopt_set_allocator`.

@@ -78,6 +78,7 @@ Exemplos disponiveis:
 - As chaves sao tratadas como random keys em [0,1).
 - O clamp do dominio e aplicado internamente nas iteracoes do HHO e RVNS.
 - A avaliacao e feita via `hscopt_decoder_fn`.
+- E possivel usar um alocador customizado via `hscopt_allocator`.
 
 ## Contribuindo
 

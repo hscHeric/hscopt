@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 
+#include "hscopt/alloc.h"
 #include "hscopt/decoder.h"
 #include "hscopt/rng.h"
 
@@ -55,6 +56,19 @@ hscopt_rvns_ctx *hscopt_rvns_create(const double *x0, size_t dim, size_t k_max,
                                     unsigned max_iters, unsigned max_threads,
                                     hscopt_decoder_fn decoder,
                                     hscopt_decode_ctx *dctx, hscopt_rng *rng);
+
+/**
+ * @brief Cria e inicializa um contexto do RVNS com alocador customizado.
+ *
+ * Se @p alloc for NULL, usa o alocador global.
+ *
+ * @param alloc Alocador customizado (opcional).
+ * @return Ponteiro para o contexto RVNS em caso de sucesso, ou NULL em erro.
+ */
+hscopt_rvns_ctx *hscopt_rvns_create_with_allocator(
+    const double *x0, size_t dim, size_t k_max, unsigned max_iters,
+    unsigned max_threads, hscopt_decoder_fn decoder, hscopt_decode_ctx *dctx,
+    hscopt_rng *rng, const hscopt_allocator *alloc);
 
 /**
  * @brief Libera todos os recursos associados ao contexto RVNS.
