@@ -11,6 +11,11 @@ extern "C" {
 #endif
 
 /**
+ * @file hho.h
+ * @brief API pública do algoritmo Harris Hawks Optimization (HHO).
+ */
+
+/**
  * @brief Contexto opaco do algoritmo HHO.
  *
  * O contexto armazena todos os dados internos necessários para a execução
@@ -76,7 +81,9 @@ int hscopt_hho_reset(hscopt_hho_ctx *ctx);
  * - atualização do rabbit (melhor solução),
  * - cálculo da energia de fuga,
  * - atualização das posições dos hawks conforme as fases
- *   de exploração e exploração definidas no HHO.
+ *   de exploração e explotação definidas no HHO.
+ *
+ * As posições são mantidas no hipercubo [0,1) via clamp.
  *
  * @param ctx Contexto HHO.
  * @param iters Número de iterações a executar (>= 1).

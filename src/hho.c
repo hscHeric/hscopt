@@ -8,39 +8,37 @@
 #include "hscopt/defs.h"
 #include "hscopt/rng.h"
 
-#define LEVY_SIGMA 1.5
+#ifdef _OPENMP
+  #include <omp.h>
+#endif
 
-/* ponteiro para o agente i (vetor de dim doubles) */
 #define HAWK_PTR(ctx, agent) (&(ctx)->X[(agent) * (ctx)->dim])
-
-/* t e T do paper: E1 = 2*(1 - t/T) */
-#define E1(t, T) (2.0 * (1.0 - ((double)(t) / (double)(T))))
-
-/* E0 em (-1,1): 2*u - 1 */
-#define E0(u01) (2.0 * (u01) - 1.0)
+#define HHO_E1(t, T) (2.0 * (1.0 - ((double)(t) / (double)(T))))
+#define HHO_E0(u01) (2.0 * (u01)-1.0)
 
 struct hscopt_hho_ctx {
   size_t dim;
   size_t n_agents;
 
-  unsigned iter;       // t
-  unsigned max_iters;  // T
+  unsigned iter;
+  unsigned max_iters;
   unsigned max_threads;
+  unsigned eff_threads;
 
   hscopt_decoder_fn decoder;
   hscopt_decode_ctx *dctx;
   hscopt_rng *rng;
 
-  double *X;        // [n_agents * dim]
-  double *fitness;  // [n_agents]
+  double *X;
+  double *fitness;
 
   double rabbit_fitness;
-  double *rabbit_keys;  // [dim]
+  double *rabbit_keys;
 
-  double *mean_pos;  // [dim]
-  double *tmp1;      // [dim]
-  double *tmp2;      // [dim]
-  double *levy;      // [dim]
+  double *mean_pos;
+  double *tmp1;
+  double *tmp2;
+  double *levy;
 
   struct {
     int has_spare;
@@ -50,7 +48,6 @@ struct hscopt_hho_ctx {
   double levy_sigma;
 };
 
-/* Box–Muller com cache */
 HSCOPT_INLINE double hho_randn(hscopt_rng *rng, hscopt_hho_ctx *ctx) {
   if (ctx->gauss.has_spare) {
     ctx->gauss.has_spare = 0;
@@ -58,11 +55,11 @@ HSCOPT_INLINE double hho_randn(hscopt_rng *rng, hscopt_hho_ctx *ctx) {
   }
 
   double u1 = hscopt_rng_next_u01(rng);
-  double u2 = hscopt_rng_next_u01(rng);
   if (u1 <= 0.0) {
     u1 = 1e-12;
   }
 
+  const double u2 = hscopt_rng_next_u01(rng);
   const double r = sqrt(-2.0 * log(u1));
   const double theta = 2.0 * HSCOPT_PI * u2;
 
@@ -77,8 +74,43 @@ HSCOPT_INLINE void hho_levy(hscopt_hho_ctx *ctx) {
     const double u = 0.01 * hho_randn(ctx->rng, ctx) * ctx->levy_sigma;
     double v = hho_randn(ctx->rng, ctx);
     const double av = fabs(v);
-    if (av < 1e-12) v = (v < 0.0 ? -1e-12 : 1e-12);
+    if (av < 1e-12) {
+      v = (v < 0.0 ? -1e-12 : 1e-12);
+    }
     ctx->levy[j] = u / pow(fabs(v), inv_beta);
+  }
+}
+
+HSCOPT_INLINE void hho_eval_all_and_update_rabbit(hscopt_hho_ctx *ctx) {
+#ifdef _OPENMP
+  #pragma omp parallel for num_threads(ctx->eff_threads) schedule(static)
+#endif
+  for (ptrdiff_t i = 0; i < (ptrdiff_t)ctx->n_agents; ++i) {
+    double *const x = HAWK_PTR(ctx, (size_t)i);
+    ctx->fitness[(size_t)i] = ctx->decoder(x, ctx->dim, ctx->dctx);
+  }
+
+  for (size_t i = 0; i < ctx->n_agents; ++i) {
+    if (ctx->fitness[i] < ctx->rabbit_fitness) {
+      ctx->rabbit_fitness = ctx->fitness[i];
+      memcpy(ctx->rabbit_keys, HAWK_PTR(ctx, i), ctx->dim * sizeof(double));
+    }
+  }
+}
+
+HSCOPT_INLINE void hho_mean_pos(hscopt_hho_ctx *ctx) {
+  memset(ctx->mean_pos, 0, ctx->dim * sizeof(double));
+
+  for (size_t i = 0; i < ctx->n_agents; ++i) {
+    const double *const x = HAWK_PTR(ctx, i);
+    for (size_t j = 0; j < ctx->dim; ++j) {
+      ctx->mean_pos[j] += x[j];
+    }
+  }
+
+  const double inv = 1.0 / (double)ctx->n_agents;
+  for (size_t j = 0; j < ctx->dim; ++j) {
+    ctx->mean_pos[j] *= inv;
   }
 }
 
@@ -86,8 +118,7 @@ hscopt_hho_ctx *hscopt_hho_create(size_t dim, size_t n_agents,
                                   unsigned max_iters, unsigned max_threads,
                                   hscopt_decoder_fn decoder,
                                   hscopt_decode_ctx *dctx, hscopt_rng *rng) {
-  if (!decoder || !rng || dim == 0 || n_agents == 0 || max_iters == 0 ||
-      max_threads == 0) {
+  if (!decoder || !rng || dim == 0 || n_agents == 0 || max_iters == 0) {
     return NULL;
   }
 
@@ -100,7 +131,12 @@ hscopt_hho_ctx *hscopt_hho_create(size_t dim, size_t n_agents,
   ctx->n_agents = n_agents;
   ctx->iter = 0;
   ctx->max_iters = max_iters;
-  ctx->max_threads = max_threads;
+  ctx->max_threads = (max_threads == 0u ? 1u : max_threads);
+#ifdef _OPENMP
+  ctx->eff_threads = ctx->max_threads;
+#else
+  ctx->eff_threads = 1u;
+#endif
 
   ctx->decoder = decoder;
   ctx->dctx = dctx;
@@ -120,13 +156,12 @@ hscopt_hho_ctx *hscopt_hho_create(size_t dim, size_t n_agents,
     return NULL;
   }
 
-  // Cálculo do levy_sigma
   const double beta = 1.5;
   const double num = tgamma(1.0 + beta) * sin(HSCOPT_PI * beta / 2.0);
   const double den =
       tgamma((1.0 + beta) / 2.0) * beta * pow(2.0, (beta - 1.0) / 2.0);
-
   ctx->levy_sigma = pow(num / den, 1.0 / beta);
+
   ctx->gauss.has_spare = 0;
   ctx->gauss.spare = 0.0;
 
@@ -140,6 +175,7 @@ hscopt_hho_ctx *hscopt_hho_create(size_t dim, size_t n_agents,
 
 void hscopt_hho_destroy(hscopt_hho_ctx *ctx) {
   if (!ctx) return;
+
   free(ctx->X);
   free(ctx->fitness);
   free(ctx->rabbit_keys);
@@ -150,23 +186,6 @@ void hscopt_hho_destroy(hscopt_hho_ctx *ctx) {
   free(ctx);
 }
 
-HSCOPT_INLINE void hho_eval_all(hscopt_hho_ctx *ctx) {
-#ifdef _OPENMP
-#pragma omp parallel for num_threads(ctx->max_threads)
-#endif
-  for (ptrdiff_t i = 0; i < (ptrdiff_t)ctx->n_agents; ++i) {
-    double *x = HAWK_PTR(ctx, (size_t)i);
-    ctx->fitness[(size_t)i] = ctx->decoder(x, ctx->dim, ctx->dctx);
-  }
-
-  for (size_t i = 0; i < ctx->n_agents; ++i) {
-    if (ctx->fitness[i] < ctx->rabbit_fitness) {
-      ctx->rabbit_fitness = ctx->fitness[i];
-      memcpy(ctx->rabbit_keys, HAWK_PTR(ctx, i), ctx->dim * sizeof(double));
-    }
-  }
-}
-
 int hscopt_hho_reset(hscopt_hho_ctx *ctx) {
   if (!ctx) {
     return 1;
@@ -175,35 +194,19 @@ int hscopt_hho_reset(hscopt_hho_ctx *ctx) {
   ctx->iter = 0;
   ctx->rabbit_fitness = INFINITY;
   ctx->gauss.has_spare = 0;
-  ctx->gauss.spare = 0;
+  ctx->gauss.spare = 0.0;
 
   memset(ctx->rabbit_keys, 0, ctx->dim * sizeof(double));
 
-  // inicializa os gaviões
   for (size_t i = 0; i < ctx->n_agents; ++i) {
-    double *x = HAWK_PTR(ctx, i);
-    for (size_t j = 0; j < ctx->dim; j++) {
+    double *const x = HAWK_PTR(ctx, i);
+    for (size_t j = 0; j < ctx->dim; ++j) {
       x[j] = hscopt_rng_next_u01(ctx->rng);
     }
   }
 
-  // calcula o fitness dos gaviões
-  hho_eval_all(ctx);
+  hho_eval_all_and_update_rabbit(ctx);
   return 0;
-}
-
-HSCOPT_INLINE void hho_clamp_vec(double *x, size_t n) {
-  for (size_t i = 0; i < n; ++i) x[i] = HSCOPT_CLAMP_KEY(x[i]);
-}
-
-HSCOPT_INLINE void hho_mean_pos(hscopt_hho_ctx *ctx) {
-  memset(ctx->mean_pos, 0, ctx->dim * sizeof(double));
-  for (size_t i = 0; i < ctx->n_agents; ++i) {
-    double *x = HAWK_PTR(ctx, i);
-    for (size_t j = 0; j < ctx->dim; ++j) ctx->mean_pos[j] += x[j];
-  }
-  const double inv = 1.0 / (double)ctx->n_agents;
-  for (size_t j = 0; j < ctx->dim; ++j) ctx->mean_pos[j] *= inv;
 }
 
 int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
@@ -214,143 +217,126 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
     return 2;
   }
 
-  // loop principal de iterações
-  for (size_t it = 0; it < iters; ++it) {
-    // clamp e eval dos gavioes para garantir que estão no hipercubo
+  for (unsigned it = 0; it < iters; ++it) {
     for (size_t i = 0; i < ctx->n_agents; ++i) {
-      hho_clamp_vec(HAWK_PTR(ctx, i), ctx->dim);
+      HSCOPT_CLAMP_KEY_VEC(HAWK_PTR(ctx, i), ctx->dim);
     }
 
-    hho_eval_all(ctx);
-
-    const double E1 = E1(ctx->iter, ctx->max_iters);
-    hho_mean_pos(ctx);  // calcula a pocição media do enxame
+    const double e1 = HHO_E1(ctx->iter, ctx->max_iters);
+    hho_mean_pos(ctx);
 
     for (size_t i = 0; i < ctx->n_agents; ++i) {
-      double *Xi = HAWK_PTR(ctx, i);
-      const double E0 = E0(hscopt_rng_next_u01(ctx->rng));
-      const double E = E1 * E0;
+      double *const Xi = HAWK_PTR(ctx, i);
+      const double e0 = HHO_E0(hscopt_rng_next_u01(ctx->rng));
+      const double e = e1 * e0;
+      const double abs_e = fabs(e);
 
-      if (fabs(E) >= 1.0) {
-        // q aleatorio que define a estratégia de exploração
+      if (abs_e >= 1.0) {
         const double q = hscopt_rng_next_u01(ctx->rng);
+        const size_t r_idx = hscopt_rng_random_index(ctx->rng, ctx->n_agents);
+        const double *const Xrand = HAWK_PTR(ctx, r_idx);
 
-        // Calculando falcao aleatorio
-        size_t r_idx =
-            (size_t)(hscopt_rng_next_u01(ctx->rng) * (double)ctx->n_agents);
-        if (r_idx >= ctx->n_agents) r_idx = ctx->n_agents - 1;
-        double *Xrand = HAWK_PTR(ctx, r_idx);
-
-        // Equação  (1) do A brief description of the HHO algorithm, está no
-        // drive
         if (q >= 0.5) {
           const double r1 = hscopt_rng_next_u01(ctx->rng);
           const double r2 = hscopt_rng_next_u01(ctx->rng);
           for (size_t j = 0; j < ctx->dim; ++j) {
-            const double val =
-                Xrand[j] - r1 * fabs(Xrand[j] - 2.0 * r2 * Xi[j]);
+            const double val = Xrand[j] - r1 * fabs(Xrand[j] - 2.0 * r2 * Xi[j]);
             Xi[j] = HSCOPT_CLAMP_KEY(val);
           }
         } else {
-          const double r3 = hscopt_rng_next_u01(ctx->rng);
-          const double r4 = hscopt_rng_next_u01(ctx->rng);
-          const double s = r3 * r4;
+          const double s = hscopt_rng_next_u01(ctx->rng) *
+                           hscopt_rng_next_u01(ctx->rng);
           for (size_t j = 0; j < ctx->dim; ++j) {
             const double val = (ctx->rabbit_keys[j] - ctx->mean_pos[j]) - s;
             Xi[j] = HSCOPT_CLAMP_KEY(val);
           }
         }
+        continue;
+      }
+
+      const double r = hscopt_rng_next_u01(ctx->rng);
+
+      if (r >= 0.5 && abs_e >= 0.5) {
+        const double jump_strength = 2.0 * (1.0 - hscopt_rng_next_u01(ctx->rng));
+        for (size_t j = 0; j < ctx->dim; ++j) {
+          const double val =
+              (ctx->rabbit_keys[j] - Xi[j]) -
+              e * fabs(jump_strength * ctx->rabbit_keys[j] - Xi[j]);
+          Xi[j] = HSCOPT_CLAMP_KEY(val);
+        }
+        continue;
+      }
+
+      if (r >= 0.5 && abs_e < 0.5) {
+        for (size_t j = 0; j < ctx->dim; ++j) {
+          const double val =
+              ctx->rabbit_keys[j] - e * fabs(ctx->rabbit_keys[j] - Xi[j]);
+          Xi[j] = HSCOPT_CLAMP_KEY(val);
+        }
+        continue;
+      }
+
+      if (r < 0.5 && abs_e >= 0.5) {
+        const double jump_strength = 2.0 * (1.0 - hscopt_rng_next_u01(ctx->rng));
+
+        for (size_t j = 0; j < ctx->dim; ++j) {
+          ctx->tmp1[j] = ctx->rabbit_keys[j] -
+                         e * fabs(jump_strength * ctx->rabbit_keys[j] - Xi[j]);
+        }
+        HSCOPT_CLAMP_KEY_VEC(ctx->tmp1, ctx->dim);
+
+        const double fcur = ctx->decoder(Xi, ctx->dim, ctx->dctx);
+        const double f1 = ctx->decoder(ctx->tmp1, ctx->dim, ctx->dctx);
+
+        if (f1 < fcur) {
+          memcpy(Xi, ctx->tmp1, ctx->dim * sizeof(double));
+        } else {
+          hho_levy(ctx);
+          for (size_t j = 0; j < ctx->dim; ++j) {
+            ctx->tmp2[j] =
+                ctx->tmp1[j] + hho_randn(ctx->rng, ctx) * ctx->levy[j];
+          }
+          HSCOPT_CLAMP_KEY_VEC(ctx->tmp2, ctx->dim);
+
+          const double f2 = ctx->decoder(ctx->tmp2, ctx->dim, ctx->dctx);
+          if (f2 < fcur) {
+            memcpy(Xi, ctx->tmp2, ctx->dim * sizeof(double));
+          }
+        }
+        continue;
+      }
+
+      const double jump_strength = 2.0 * (1.0 - hscopt_rng_next_u01(ctx->rng));
+      for (size_t j = 0; j < ctx->dim; ++j) {
+        ctx->tmp1[j] = ctx->rabbit_keys[j] -
+                       e * fabs(jump_strength * ctx->rabbit_keys[j] -
+                                ctx->mean_pos[j]);
+      }
+      HSCOPT_CLAMP_KEY_VEC(ctx->tmp1, ctx->dim);
+
+      const double fcur = ctx->decoder(Xi, ctx->dim, ctx->dctx);
+      const double f1 = ctx->decoder(ctx->tmp1, ctx->dim, ctx->dctx);
+
+      if (f1 < fcur) {
+        memcpy(Xi, ctx->tmp1, ctx->dim * sizeof(double));
       } else {
-        // TODO: fase de intensificação
-        const double r = hscopt_rng_next_u01(ctx->rng);
-
-        if (r >= 0.5 && fabs(E) >= 0.5) {
-          // Equação (4)
-          const double jump_strength =
-              2.0 * (1.0 - hscopt_rng_next_u01(ctx->rng));
-
-          for (size_t i = 0; i < ctx->dim; ++i) {
-            for (size_t j = 0; j < ctx->dim; ++j) {
-              const double val =
-                  (ctx->rabbit_keys[j] - Xi[j]) -
-                  E * fabs(jump_strength * ctx->rabbit_keys[j] - Xi[j]);
-              Xi[j] = HSCOPT_CLAMP_KEY(val);
-            }
-          }
+        hho_levy(ctx);
+        for (size_t j = 0; j < ctx->dim; ++j) {
+          ctx->tmp2[j] = ctx->tmp1[j] + hho_randn(ctx->rng, ctx) * ctx->levy[j];
         }
+        HSCOPT_CLAMP_KEY_VEC(ctx->tmp2, ctx->dim);
 
-        if (r >= 0.5 && fabs(E) < 0.5) {
-          for (size_t j = 0; j < ctx->dim; ++j) {
-            const double val =
-                ctx->rabbit_keys[j] - E * fabs(ctx->rabbit_keys[j] - Xi[j]);
-            Xi[j] = HSCOPT_CLAMP_KEY(val);
-          }
-        }
-
-        if (r < 0.5 && fabs(E) >= 0.5) {
-          const double jump_strength =
-              2.0 * (1.0 - hscopt_rng_next_u01(ctx->rng));
-
-          for (size_t j = 0; j < ctx->dim; ++j) {
-            ctx->tmp1[j] =
-                ctx->rabbit_keys[j] -
-                E * fabs(jump_strength * ctx->rabbit_keys[j] - Xi[j]);
-          }
-          hho_clamp_vec(ctx->tmp1, ctx->dim);
-
-          const double fcur = ctx->decoder(Xi, ctx->dim, ctx->dctx);
-          const double f1 = ctx->decoder(ctx->tmp1, ctx->dim, ctx->dctx);
-
-          if (f1 < fcur) {
-            memcpy(Xi, ctx->tmp1, ctx->dim * sizeof(double));
-          } else {
-            hho_levy(ctx);
-            for (size_t j = 0; j < ctx->dim; ++j) {
-              ctx->tmp2[j] =
-                  ctx->tmp1[j] + hho_randn(ctx->rng, ctx) * ctx->levy[j];
-            }
-            hho_clamp_vec(ctx->tmp2, ctx->dim);
-
-            const double f2 = ctx->decoder(ctx->tmp2, ctx->dim, ctx->dctx);
-            if (f2 < fcur) memcpy(Xi, ctx->tmp2, ctx->dim * sizeof(double));
-          }
-        }
-
-        if (r < 0.5 && fabs(E) < 0.5) {
-          // TODO: Equação (11)
-          const double jump_strength =
-              2.0 * (1.0 - hscopt_rng_next_u01(ctx->rng));
-
-          for (size_t j = 0; j < ctx->dim; ++j) {
-            ctx->tmp1[j] = ctx->rabbit_keys[j] -
-                           E * fabs(jump_strength * ctx->rabbit_keys[j] -
-                                    ctx->mean_pos[j]);
-          }
-          hho_clamp_vec(ctx->tmp1, ctx->dim);
-
-          const double fcur = ctx->decoder(Xi, ctx->dim, ctx->dctx);
-          const double f1 = ctx->decoder(ctx->tmp1, ctx->dim, ctx->dctx);
-
-          if (f1 < fcur) {
-            memcpy(Xi, ctx->tmp1, ctx->dim * sizeof(double));
-          } else {
-            hho_levy(ctx);
-            for (size_t j = 0; j < ctx->dim; ++j) {
-              ctx->tmp2[j] =
-                  ctx->tmp1[j] + hho_randn(ctx->rng, ctx) * ctx->levy[j];
-            }
-            hho_clamp_vec(ctx->tmp2, ctx->dim);
-
-            const double f2 = ctx->decoder(ctx->tmp2, ctx->dim, ctx->dctx);
-            if (f2 < fcur) memcpy(Xi, ctx->tmp2, ctx->dim * sizeof(double));
-          }
+        const double f2 = ctx->decoder(ctx->tmp2, ctx->dim, ctx->dctx);
+        if (f2 < fcur) {
+          memcpy(Xi, ctx->tmp2, ctx->dim * sizeof(double));
         }
       }
     }
 
-    ctx->iter += 1;
-    hho_eval_all(ctx);
+    hho_eval_all_and_update_rabbit(ctx);
+    ++ctx->iter;
   }
+
   return 0;
 }
 
@@ -363,23 +349,23 @@ const double *hscopt_hho_best_keys(const hscopt_hho_ctx *ctx) {
 }
 
 unsigned hscopt_hho_iteration(const hscopt_hho_ctx *ctx) {
-  return ctx ? ctx->iter : 0;
+  return ctx ? ctx->iter : 0u;
 }
 
 unsigned hscopt_hho_max_iters(const hscopt_hho_ctx *ctx) {
-  return ctx ? ctx->max_iters : 0;
+  return ctx ? ctx->max_iters : 0u;
 }
 
 size_t hscopt_hho_n_agents(const hscopt_hho_ctx *ctx) {
-  return ctx ? ctx->n_agents : 0;
+  return ctx ? ctx->n_agents : 0u;
 }
 
 size_t hscopt_hho_n_keys(const hscopt_hho_ctx *ctx) {
-  return ctx ? ctx->dim : 0;
+  return ctx ? ctx->dim : 0u;
 }
 
 unsigned hscopt_hho_max_threads(const hscopt_hho_ctx *ctx) {
-  return ctx ? ctx->max_threads : 1;
+  return ctx ? ctx->eff_threads : 1u;
 }
 
 int hscopt_hho_try_update_rabbit(hscopt_hho_ctx *ctx, const double *keys) {
@@ -393,5 +379,6 @@ int hscopt_hho_try_update_rabbit(hscopt_hho_ctx *ctx, const double *keys) {
     memcpy(ctx->rabbit_keys, keys, ctx->dim * sizeof(double));
     return 1;
   }
+
   return 0;
 }

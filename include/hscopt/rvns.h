@@ -11,6 +11,11 @@ extern "C" {
 #endif
 
 /**
+ * @file rvns.h
+ * @brief API pública do algoritmo RVNS.
+ */
+
+/**
  * @struct hscopt_rvns_ctx
  * @brief Contexto opaco do algoritmo RVNS.
  *
@@ -131,7 +136,7 @@ unsigned hscopt_rvns_iteration(const hscopt_rvns_ctx *ctx);
 size_t hscopt_rvns_dim(const hscopt_rvns_ctx *ctx);
 
 /**
- * @brief Retorna o máximo de pertucação.
+ * @brief Retorna o máximo de perturbação.
  *
  * @param ctx Contexto RVNS.
  * @return k_max.

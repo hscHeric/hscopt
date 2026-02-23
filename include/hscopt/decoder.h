@@ -8,6 +8,11 @@ extern "C" {
 #endif
 
 /**
+ * @file decoder.h
+ * @brief Tipos e assinaturas para a função decoder.
+ */
+
+/**
  * @brief Tipo opaco que representa a instância do problema.
  *
  * A instância é tratada como somente leitura durante as chamadas do decoder.

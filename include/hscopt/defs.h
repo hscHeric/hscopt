@@ -1,6 +1,13 @@
 #ifndef HSCOPT_DEFS_H
 #define HSCOPT_DEFS_H
 
+#include <stddef.h>
+
+/**
+ * @file defs.h
+ * @brief Macros e utilitários comuns da biblioteca.
+ */
+
 #if defined(__GNUC__) || defined(__clang__)
 
   /**
@@ -50,6 +57,19 @@
  * @param x Valor.
  */
 #define HSCOPT_CLAMP_KEY(x) HSCOPT_CLAMP((x), 0.0, (1.0 - 1e-15))
+
+/**
+ * @brief Clamp de vetor para random keys no intervalo [0, 1).
+ *
+ * @param x Ponteiro para o vetor.
+ * @param n Tamanho do vetor.
+ */
+#define HSCOPT_CLAMP_KEY_VEC(x, n)         \
+  do {                                     \
+    for (size_t _i = 0; _i < (n); ++_i) {  \
+      (x)[_i] = HSCOPT_CLAMP_KEY((x)[_i]); \
+    }                                      \
+  } while (0)
 
 /**
  * @brief Troca dois valores (swap) de um tipo explícito.

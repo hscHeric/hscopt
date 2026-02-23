@@ -11,10 +11,15 @@ extern "C" {
 #endif
 
 /**
+ * @file rng.h
+ * @brief API pública do gerador de números pseudoaleatórios.
+ */
+
+/**
  * @struct hscopt_rng
  * @brief Estrutura do gerador de números pseudoaleatórios.
  *
- * Armazena o estado interno do RNG.
+ * Armazena o estado interno do RNG (xoshiro256**).
  * O conteúdo da estrutura não deve ser acessado diretamente pelo usuário.
  */
 typedef struct hscopt_rng {
