@@ -9,8 +9,8 @@ Biblioteca C para metaheuristicas baseadas em random keys, com foco em desempenh
 
 ## Build
 
-Veja `BUILD.md`.
+Veja `docs/BUILD.md`.
 
 ## Contribuindo
 
-Veja `CONTRIBUTING.md`.
+Veja `docs/CONTRIBUTING.md`.
