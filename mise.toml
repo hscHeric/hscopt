@@ -3,33 +3,60 @@ min_version = "2026.1.5"
 [env]
 PROJECT_NAME = "{{ config_root | basename }}"
 BUILD_DIR = "{{ config_root }}/build"
+BUILD_TYPE = "Release"
+GENERATOR = "Ninja"
+
+# Feature flags (defaults seguem CMake)
+HSCOPT_ENABLE_OPENMP = "ON"
+HSCOPT_ENABLE_LTO = "ON"
+HSCOPT_ENABLE_NATIVE = "ON"
+HSCOPT_ENABLE_FAST_MATH = "OFF"
+HSCOPT_ENABLE_WARNINGS = "ON"
+HSCOPT_ENABLE_STRICT_ALIASING = "ON"
+HSCOPT_ENABLE_VISIBILITY_HIDDEN = "ON"
 
 [tools]
 cmake = "4.2.1"
 
 [tasks.clean]
-description = "Limpa o diretório de build"
+description = "Limpa o diretorio de build"
 alias = "c"
 run = "rm -rf $BUILD_DIR"
 
 [tasks.info]
-description = "Informações de projeto"
+description = "Informacoes de projeto"
 run = '''
 echo "Projeto: $PROJECT_NAME"
 echo "Build: $BUILD_DIR"
+echo "Tipo: $BUILD_TYPE"
+echo "Gerador: $GENERATOR"
 '''
 
 [tasks.configure]
-description = "Configura o projeto com CMake e gera compile_commands.json"
+description = "Configura o projeto com CMake (Release por padrao)"
 alias = "cfg"
 run = '''
 mkdir -p "$BUILD_DIR"
-cmake -S . -B "$BUILD_DIR" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+if command -v ninja >/dev/null 2>&1; then
+  GEN="Ninja"
+else
+  GEN="Unix Makefiles"
+fi
+cmake -S . -B "$BUILD_DIR" -G "$GEN" \
+  -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+  -DHSCOPT_ENABLE_OPENMP="$HSCOPT_ENABLE_OPENMP" \
+  -DHSCOPT_ENABLE_LTO="$HSCOPT_ENABLE_LTO" \
+  -DHSCOPT_ENABLE_NATIVE="$HSCOPT_ENABLE_NATIVE" \
+  -DHSCOPT_ENABLE_FAST_MATH="$HSCOPT_ENABLE_FAST_MATH" \
+  -DHSCOPT_ENABLE_WARNINGS="$HSCOPT_ENABLE_WARNINGS" \
+  -DHSCOPT_ENABLE_STRICT_ALIASING="$HSCOPT_ENABLE_STRICT_ALIASING" \
+  -DHSCOPT_ENABLE_VISIBILITY_HIDDEN="$HSCOPT_ENABLE_VISIBILITY_HIDDEN"
 ln -sf "$BUILD_DIR/compile_commands.json" "{{ config_root }}/compile_commands.json"
 '''
 
 [tasks.build]
-description = "Compila (CMake --build) e mantém compile_commands.json linkado"
+description = "Compila (CMake --build)"
 alias = "b"
 run = '''
 mise run configure
@@ -42,4 +69,36 @@ alias = "rb"
 run = '''
 mise run clean
 mise run build
+'''
+
+[tasks.configure_debug]
+description = "Configura Debug"
+run = '''
+BUILD_TYPE=Debug mise run configure
+'''
+
+[tasks.configure_release]
+description = "Configura Release"
+run = '''
+BUILD_TYPE=Release mise run configure
+'''
+
+[tasks.build_debug]
+description = "Build Debug"
+run = '''
+BUILD_TYPE=Debug mise run build
+'''
+
+[tasks.build_release]
+description = "Build Release"
+run = '''
+BUILD_TYPE=Release mise run build
+'''
+
+[tasks.example_hho]
+description = "Compila e executa o exemplo HHO"
+run = '''
+mise run build
+cc examples/hho_example.c -Iinclude -L"$BUILD_DIR" -lhscopt_rng -lm -fopenmp -o /tmp/hho_example
+/tmp/hho_example | head -n 5
 '''
