@@ -1,6 +1,6 @@
 # Contribuindo
 
-Obrigado por contribuir. Este guia descreve o fluxo basico.
+Obrigado por contribuir. Este guia descreve o fluxo basico de trabalho.
 
 ## Padrao de commits
 
@@ -9,8 +9,8 @@ Use um formato inspirado em Conventional Commits:
 tipo(escopo): mensagem curta
 
 - `tipo`: `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`
-- `escopo` (opcional): area afetada (ex.: `hho`, `rvns`, `rng`, `docs`, `build`).
-- mensagem no imperativo, minuscula, sem ponto final.
+- `escopo` (opcional): area afetada (ex.: `hho`, `rvns`, `rng`, `docs`, `build`)
+- mensagem no imperativo, minuscula, sem ponto final
 
 Exemplos:
 - `docs(hho): documentar API publica`
@@ -23,14 +23,23 @@ Exemplos:
 - Evitar alocacoes no hot loop.
 - Manter funcoes pequenas e bem nomeadas.
 - Documentar APIs publicas com Doxygen.
+- Manter o dominio de random keys em [0,1) quando aplicavel.
 
-## Testes
+## Build e testes
 
-- Compile com `cmake --preset release` e `cmake --build --preset release`.
-- Se alterar API, atualize `README.md` e `BUILD.md`.
+- Use `docs/BUILD.md` como referencia.
+- Antes de abrir PR, compile em `Release` e `Debug`.
+- Inclua comandos e resultados de build/testes no PR.
+
+## Estrutura do repo
+
+- `include/hscopt/` headers publicos
+- `src/` implementacoes
+- `examples/` exemplos
+- `docs/` documentacao
 
 ## Issues e PRs
 
 - Descreva o problema e a motivacao.
 - Inclua passos para reproduzir quando aplicavel.
-- Inclua resultados de build/testes.
+- Explique o impacto de performance quando relevante.

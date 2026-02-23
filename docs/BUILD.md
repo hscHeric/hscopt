@@ -1,28 +1,56 @@
 # Build
 
-Este projeto usa CMake modular e presets.
+Este projeto usa CMake modular e presets. O alvo principal e Linux com GCC.
 
 ## Requisitos
 
-- GCC (Linux)
+- GCC
 - CMake >= 3.16
-- Ninja (recomendado, usado nos presets)
+- Ninja (recomendado)
+
+No Arch:
+
+```bash
+sudo pacman -S ninja cmake
+```
 
 ## Build rapido (release)
+
+Com presets (requer Ninja):
 
 ```bash
 cmake --preset release
 cmake --build --preset release
 ```
 
+Sem Ninja (Unix Makefiles):
+
+```bash
+cmake -S . -B build/release -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
+cmake --build build/release
+```
+
 ## Build debug
+
+Com presets:
 
 ```bash
 cmake --preset debug
 cmake --build --preset debug
 ```
 
-## Flags (feature flags)
+Sem Ninja:
+
+```bash
+cmake -S . -B build/debug -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/debug
+```
+
+## Target gerado
+
+- Biblioteca estatica: `hscopt_rng` (arquivo `libhscopt_rng.a`)
+
+## Feature flags
 
 As opcoes abaixo podem ser ligadas/desligadas via `-D`:
 
@@ -41,7 +69,24 @@ cmake -S . -B build -DHSCOPT_ENABLE_LTO=OFF -DHSCOPT_ENABLE_NATIVE=OFF
 cmake --build build
 ```
 
-## Notas
+Notas:
 
 - `HSCOPT_ENABLE_FAST_MATH` pode alterar resultados numericos.
 - `HSCOPT_ENABLE_NATIVE` gera binarios otimizados para a maquina atual.
+
+## Usando mise
+
+O repositorio inclui tarefas em `mise.toml`:
+
+```bash
+mise run build
+mise run build_debug
+mise run build_release
+mise run example_hho
+```
+
+As flags podem ser alteradas via variaveis de ambiente, por exemplo:
+
+```bash
+HSCOPT_ENABLE_LTO=OFF HSCOPT_ENABLE_NATIVE=OFF mise run build
+```
