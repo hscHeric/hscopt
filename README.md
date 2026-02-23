@@ -72,6 +72,7 @@ Exemplos disponiveis:
 - `examples/rng_example.c`
 - `examples/decoder_example.c`
 - `examples/hho_example.c`
+- `examples/alloc_example.c`
 
 ## Notas
 
