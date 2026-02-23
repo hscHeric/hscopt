@@ -20,13 +20,46 @@ Biblioteca C de metaheuristicas para otimizacao combinatoria baseada em random k
 
 Veja `docs/BUILD.md`.
 
-## Uso rapido
+## Tutorial: usar como `external/` em outro projeto
 
-Header principal:
+Exemplo com CMake e a biblioteca dentro do seu repositorio em `external/hscopt`.
+
+### 1) Adicione o repositorio
+
+```bash
+mkdir -p external
+# opcao 1: git submodule
+# git submodule add <url-do-hscopt> external/hscopt
+
+# opcao 2: git clone
+# git clone <url-do-hscopt> external/hscopt
+```
+
+### 2) No CMake do seu projeto
+
+```cmake
+# CMakeLists.txt do seu projeto
+add_subdirectory(external/hscopt)
+
+add_executable(meu_app src/main.c)
+
+target_link_libraries(meu_app PRIVATE hscopt)
+```
+
+### 3) No codigo
 
 ```c
 #include "hscopt/hscopt.h"
 ```
+
+### 4) Build do seu projeto
+
+```bash
+cmake -S . -B build
+cmake --build build
+```
+
+## Uso rapido
 
 Fluxo tipico:
 
