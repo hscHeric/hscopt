@@ -48,7 +48,7 @@ cmake --build build/debug
 
 ## Target gerado
 
-- Biblioteca estatica: `hscopt_rng` (arquivo `libhscopt_rng.a`)
+- Biblioteca estatica: `hscopt` (arquivo `libhscopt.a`)
 
 ## Feature flags
 

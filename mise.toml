@@ -99,6 +99,6 @@ BUILD_TYPE=Release mise run build
 description = "Compila e executa o exemplo HHO"
 run = '''
 mise run build
-cc examples/hho_example.c -Iinclude -L"$BUILD_DIR" -lhscopt_rng -lm -fopenmp -o /tmp/hho_example
+cc examples/hho_example.c -Iinclude -L"$BUILD_DIR" -lhscopt -lm -fopenmp -o /tmp/hho_example
 /tmp/hho_example | head -n 5
 '''
