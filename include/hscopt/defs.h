@@ -32,12 +32,22 @@
    * @param x Expressão booleana.
    */
   #define HSCOPT_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#if defined(__cplusplus)
+  #define HSCOPT_RESTRICT __restrict__
+#else
+  #define HSCOPT_RESTRICT restrict
+#endif
 #else
   // FALLBACKS
   #define HSCOPT_INLINE static inline
   #define HSCOPT_UNUSED
   #define HSCOPT_LIKELY(x) (x)
   #define HSCOPT_UNLIKELY(x) (x)
+  #if defined(__cplusplus)
+    #define HSCOPT_RESTRICT __restrict__
+  #else
+    #define HSCOPT_RESTRICT restrict
+  #endif
 #endif
 
 /**

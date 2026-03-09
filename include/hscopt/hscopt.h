@@ -12,6 +12,7 @@ extern "C" {
  */
 
 #include "alloc.h"
+#include "aco.h"
 #include "decoder.h"
 #include "defs.h"
 #include "hho.h"

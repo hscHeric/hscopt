@@ -11,6 +11,7 @@ include(ProjectSetup)
 add_library(hscopt STATIC
   src/alloc.c
   src/rng.c
+  src/aco.c
   src/hho.c
   src/rvns.c
 )
@@ -23,3 +24,17 @@ hscopt_setup_target(hscopt)
 
 # Math library
 target_link_libraries(hscopt PUBLIC m)
+
+if (HSCOPT_BUILD_EXAMPLES)
+  add_executable(knapsack_hho_example examples/knapsack_hho_example.c)
+  target_link_libraries(knapsack_hho_example PRIVATE hscopt)
+  hscopt_setup_target(knapsack_hho_example)
+
+  add_executable(knapsack_rvns_example examples/knapsack_rvns_example.c)
+  target_link_libraries(knapsack_rvns_example PRIVATE hscopt)
+  hscopt_setup_target(knapsack_rvns_example)
+
+  add_executable(knapsack_aco_example examples/knapsack_aco_example.c)
+  target_link_libraries(knapsack_aco_example PRIVATE hscopt)
+  hscopt_setup_target(knapsack_aco_example)
+endif()

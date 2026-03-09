@@ -36,7 +36,7 @@ typedef struct hscopt_hho_ctx hscopt_hho_ctx;
  * - avalia a população inicial,
  * - define a melhor solução inicial (rabbit).
  *
- * @param dim Número de chaves (dimensão do problema).
+ * @param n_keys Número de chaves (dimensão do problema).
  * @param n_agents Número de agentes (hawks).
  * @param max_iters Número máximo de iterações do algoritmo (T no artigo).
  * @param max_threads Número máximo de threads para avaliação (se OpenMP estiver
@@ -47,7 +47,7 @@ typedef struct hscopt_hho_ctx hscopt_hho_ctx;
  *
  * @return Ponteiro para o contexto HHO em caso de sucesso, ou NULL em erro.
  */
-hscopt_hho_ctx *hscopt_hho_create(size_t dim, size_t n_agents,
+hscopt_hho_ctx *hscopt_hho_create(size_t n_keys, size_t n_agents,
                                   unsigned max_iters, unsigned max_threads,
                                   hscopt_decoder_fn decoder,
                                   hscopt_decode_ctx *dctx, hscopt_rng *rng);
@@ -61,7 +61,7 @@ hscopt_hho_ctx *hscopt_hho_create(size_t dim, size_t n_agents,
  * @return Ponteiro para o contexto HHO em caso de sucesso, ou NULL em erro.
  */
 hscopt_hho_ctx *hscopt_hho_create_with_allocator(
-    size_t dim, size_t n_agents, unsigned max_iters, unsigned max_threads,
+    size_t n_keys, size_t n_agents, unsigned max_iters, unsigned max_threads,
     hscopt_decoder_fn decoder, hscopt_decode_ctx *dctx, hscopt_rng *rng,
     const hscopt_allocator *alloc);
 

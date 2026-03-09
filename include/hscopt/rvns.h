@@ -36,12 +36,11 @@ typedef struct hscopt_rvns_ctx hscopt_rvns_ctx;
  * Esta função:
  * - aloca o contexto e buffers internos,
  * - define a solução inicial:
- *   - se @p x0 != NULL, copia @p x0,
- *   - se @p x0 == NULL, gera uma solução aleatória em [0,1),
+ *   - se @p initial_keys != NULL, copia @p initial_keys,
+ *   - se @p initial_keys == NULL, gera uma solução aleatória em [0,1),
  * - avalia a solução inicial e inicializa o melhor conhecido.
  *
- * @param x0 Solução inicial (vetor de tamanho @p dim) ou NULL.
- * @param dim Dimensão do vetor de chaves.
+ * @param n_keys Dimensão do vetor de chaves.
  * @param k_max Maior vizinhança a ser reconhecida (>= 1).
  * @param max_iters Número máximo de iterações configurado para o contexto.
  * @param max_threads Número máximo de threads para avaliação (se OpenMP estiver
@@ -49,13 +48,14 @@ typedef struct hscopt_rvns_ctx hscopt_rvns_ctx;
  * @param decoder Função decoder responsável por avaliar uma solução.
  * @param dctx Contexto do decoder (pode ser NULL).
  * @param rng Gerador de números aleatórios (obrigatório).
+ * @param initial_keys Solução inicial (vetor de tamanho @p n_keys) ou NULL.
  *
  * @return Ponteiro para o contexto RVNS em caso de sucesso, ou NULL em erro.
  */
-hscopt_rvns_ctx *hscopt_rvns_create(const double *x0, size_t dim, size_t k_max,
-                                    unsigned max_iters, unsigned max_threads,
-                                    hscopt_decoder_fn decoder,
-                                    hscopt_decode_ctx *dctx, hscopt_rng *rng);
+hscopt_rvns_ctx *hscopt_rvns_create(
+    size_t n_keys, size_t k_max, unsigned max_iters, unsigned max_threads,
+    hscopt_decoder_fn decoder, hscopt_decode_ctx *dctx, hscopt_rng *rng,
+    const double *initial_keys);
 
 /**
  * @brief Cria e inicializa um contexto do RVNS com alocador customizado.
@@ -66,9 +66,9 @@ hscopt_rvns_ctx *hscopt_rvns_create(const double *x0, size_t dim, size_t k_max,
  * @return Ponteiro para o contexto RVNS em caso de sucesso, ou NULL em erro.
  */
 hscopt_rvns_ctx *hscopt_rvns_create_with_allocator(
-    const double *x0, size_t dim, size_t k_max, unsigned max_iters,
-    unsigned max_threads, hscopt_decoder_fn decoder, hscopt_decode_ctx *dctx,
-    hscopt_rng *rng, const hscopt_allocator *alloc);
+    size_t n_keys, size_t k_max, unsigned max_iters, unsigned max_threads,
+    hscopt_decoder_fn decoder, hscopt_decode_ctx *dctx, hscopt_rng *rng,
+    const double *initial_keys, const hscopt_allocator *alloc);
 
 /**
  * @brief Libera todos os recursos associados ao contexto RVNS.
@@ -84,16 +84,16 @@ void hscopt_rvns_destroy(hscopt_rvns_ctx *ctx);
  *
  * Esta função:
  * - define a solução incumbente:
- *   - se @p x0 != NULL, copia @p x0,
- *   - se @p x0 == NULL, gera uma solução aleatória em [0,1),
+ *   - se @p initial_keys != NULL, copia @p initial_keys,
+ *   - se @p initial_keys == NULL, gera uma solução aleatória em [0,1),
  * - reinicia o contador de iterações,
  * - reinicia o melhor fitness encontrado.
  *
  * @param ctx Contexto RVNS.
- * @param x0 Solução inicial (vetor de tamanho @p dim) ou NULL.
+ * @param initial_keys Solução inicial (vetor de tamanho @p n_keys) ou NULL.
  * @return 0 em sucesso, valor diferente de 0 em erro.
  */
-int hscopt_rvns_reset(hscopt_rvns_ctx *ctx, const double *x0);
+int hscopt_rvns_reset(hscopt_rvns_ctx *ctx, const double *initial_keys);
 
 /**
  * @brief Executa um número de iterações do RVNS.
@@ -147,7 +147,7 @@ unsigned hscopt_rvns_iteration(const hscopt_rvns_ctx *ctx);
  * @param ctx Contexto RVNS.
  * @return Dimensão (dim).
  */
-size_t hscopt_rvns_dim(const hscopt_rvns_ctx *ctx);
+size_t hscopt_rvns_n_keys(const hscopt_rvns_ctx *ctx);
 
 /**
  * @brief Retorna o máximo de perturbação.

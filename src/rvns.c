@@ -31,14 +31,14 @@ struct hscopt_rvns_ctx {
   hscopt_allocator alloc;
 };
 
-int hscopt_rvns_reset(hscopt_rvns_ctx *ctx, const double *x0) {
+int hscopt_rvns_reset(hscopt_rvns_ctx *ctx, const double *initial_keys) {
   if (!ctx) {
     return 1;  // erro ctx null
   }
 
   ctx->iter = 0;
-  if (x0) {
-    memcpy(ctx->x, x0, ctx->dim * sizeof(double));
+  if (initial_keys) {
+    memcpy(ctx->x, initial_keys, ctx->dim * sizeof(double));
     for (size_t i = 0; i < ctx->dim; ++i) {
       ctx->x[i] = HSCOPT_CLAMP_KEY(ctx->x[i]);
     }
@@ -65,20 +65,20 @@ void hscopt_rvns_destroy(hscopt_rvns_ctx *ctx) {
   hscopt_free(&ctx->alloc, ctx);
 }
 
-hscopt_rvns_ctx *hscopt_rvns_create(const double *x0, size_t dim, size_t k_max,
-                                    unsigned max_iters, unsigned max_threads,
-                                    hscopt_decoder_fn decoder,
-                                    hscopt_decode_ctx *dctx, hscopt_rng *rng) {
-  return hscopt_rvns_create_with_allocator(x0, dim, k_max, max_iters,
-                                           max_threads, decoder, dctx, rng,
-                                           NULL);
+hscopt_rvns_ctx *hscopt_rvns_create(
+    size_t n_keys, size_t k_max, unsigned max_iters, unsigned max_threads,
+    hscopt_decoder_fn decoder, hscopt_decode_ctx *dctx, hscopt_rng *rng,
+    const double *initial_keys) {
+  return hscopt_rvns_create_with_allocator(
+      n_keys, k_max, max_iters, max_threads, decoder, dctx, rng, initial_keys,
+      NULL);
 }
 
 hscopt_rvns_ctx *hscopt_rvns_create_with_allocator(
-    const double *x0, size_t dim, size_t k_max, unsigned max_iters,
-    unsigned max_threads, hscopt_decoder_fn decoder, hscopt_decode_ctx *dctx,
-    hscopt_rng *rng, const hscopt_allocator *alloc) {
-  if (!decoder || !rng || max_iters == 0 || k_max == 0 || dim == 0) {
+    size_t n_keys, size_t k_max, unsigned max_iters, unsigned max_threads,
+    hscopt_decoder_fn decoder, hscopt_decode_ctx *dctx, hscopt_rng *rng,
+    const double *initial_keys, const hscopt_allocator *alloc) {
+  if (!decoder || !rng || max_iters == 0 || k_max == 0 || n_keys == 0) {
     return NULL;
   }
 
@@ -99,7 +99,7 @@ hscopt_rvns_ctx *hscopt_rvns_create_with_allocator(
   };
   ctx->alloc = resolved;
 
-  ctx->dim = dim;
+  ctx->dim = n_keys;
   ctx->k_max = k_max;
   ctx->iter = 0;
   ctx->max_iters = max_iters;
@@ -113,10 +113,10 @@ hscopt_rvns_ctx *hscopt_rvns_create_with_allocator(
 
   ctx->decoder = decoder;
   ctx->dctx = dctx;
-  ctx->x = (double *)hscopt_alloc(&ctx->alloc, dim * sizeof(double));
-  ctx->best = (double *)hscopt_alloc(&ctx->alloc, dim * sizeof(double));
+  ctx->x = (double *)hscopt_alloc(&ctx->alloc, n_keys * sizeof(double));
+  ctx->best = (double *)hscopt_alloc(&ctx->alloc, n_keys * sizeof(double));
   ctx->cand_keys = (double *)hscopt_alloc(
-      &ctx->alloc, (size_t)ctx->eff_threads * dim * sizeof(double));
+      &ctx->alloc, (size_t)ctx->eff_threads * n_keys * sizeof(double));
   ctx->cand_fit = (double *)hscopt_alloc(
       &ctx->alloc, (size_t)ctx->eff_threads * sizeof(double));
 
@@ -139,7 +139,7 @@ hscopt_rvns_ctx *hscopt_rvns_create_with_allocator(
     hscopt_rng_long_jump(&ctx->rng_tls[i]);
   }
 
-  if (hscopt_rvns_reset(ctx, x0) != 0) {
+  if (hscopt_rvns_reset(ctx, initial_keys) != 0) {
     hscopt_rvns_destroy(ctx);
     return NULL;
   }
@@ -159,7 +159,7 @@ unsigned hscopt_rvns_iteration(const hscopt_rvns_ctx *ctx) {
   return ctx ? ctx->iter : 0u;
 }
 
-size_t hscopt_rvns_dim(const hscopt_rvns_ctx *ctx) {
+size_t hscopt_rvns_n_keys(const hscopt_rvns_ctx *ctx) {
   return ctx ? ctx->dim : 0u;
 }
 
@@ -172,8 +172,9 @@ unsigned hscopt_rvns_max_threads(const hscopt_rvns_ctx *ctx) {
 }
 
 // Shaking em N_k(x), primeiro copia x para y e pertuba k posições
-HSCOPT_INLINE void rvns_shake(double *y, const double *x, size_t dim, size_t k,
-                              hscopt_rng *rng) {
+HSCOPT_INLINE void rvns_shake(double *HSCOPT_RESTRICT y,
+                              const double *HSCOPT_RESTRICT x, size_t dim,
+                              size_t k, hscopt_rng *rng) {
   memcpy(y, x, dim * sizeof(double));
   if (k > dim) k = dim;
   for (size_t t = 0; t < k; ++t) {
@@ -204,7 +205,7 @@ int hscopt_rvns_iterate(hscopt_rvns_ctx *ctx, unsigned iters) {
 #endif
       for (int tid_i = 0; tid_i < (int)ctx->eff_threads; ++tid_i) {
         const unsigned tid = (unsigned)tid_i;
-        double *y = CAND_PTR(ctx, tid);
+        double *const HSCOPT_RESTRICT y = CAND_PTR(ctx, tid);
         rvns_shake(y, ctx->x, ctx->dim, k, &ctx->rng_tls[tid]);
         ctx->cand_fit[tid] = ctx->decoder(y, ctx->dim, ctx->dctx);
       }
