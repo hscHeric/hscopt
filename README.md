@@ -5,7 +5,7 @@ Biblioteca C de metaheuristicas para otimizacao combinatoria baseada em random k
 ## Visao geral
 
 - Representacao por random keys no hipercubo [0,1)
-- Algoritmos: Harris Hawks Optimization (HHO) e RVNS
+- Algoritmos: Ant Colony Optimization (ACO), Harris Hawks Optimization (HHO) e RVNS
 - RNG xoshiro256** com funcoes de salto
 - API simples e focada em desempenho
 
@@ -19,6 +19,7 @@ Biblioteca C de metaheuristicas para otimizacao combinatoria baseada em random k
 ## Build
 
 Veja `docs/BUILD.md`.
+Contrato do decoder: `docs/DECODER.md`.
 
 ## Tutorial: usar como `external/` em outro projeto
 
@@ -72,6 +73,9 @@ Exemplos disponiveis:
 - `examples/rng_example.c`
 - `examples/decoder_example.c`
 - `examples/hho_example.c`
+- `examples/knapsack_hho_example.c`
+- `examples/knapsack_rvns_example.c`
+- `examples/knapsack_aco_example.c`
 - `examples/alloc_example.c`
 
 ## Notas
@@ -79,6 +83,7 @@ Exemplos disponiveis:
 - As chaves sao tratadas como random keys em [0,1).
 - O clamp do dominio e aplicado internamente nas iteracoes do HHO e RVNS.
 - A avaliacao e feita via `hscopt_decoder_fn`.
+- O decoder deve ser thread-safe para execucao concorrente.
 - E possivel usar um alocador customizado via `hscopt_allocator`.
 - Para restaurar o default (malloc/calloc/free), use `hscopt_set_allocator(NULL)`.
 

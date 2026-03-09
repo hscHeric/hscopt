@@ -82,6 +82,9 @@ O repositorio inclui tarefas em `mise.toml`:
 mise run build
 mise run build_debug
 mise run build_release
+mise run build_no_openmp
+mise run build_debug_no_openmp
+mise run check
 mise run example_hho
 ```
 
@@ -90,6 +93,11 @@ As flags podem ser alteradas via variaveis de ambiente, por exemplo:
 ```bash
 HSCOPT_ENABLE_LTO=OFF HSCOPT_ENABLE_NATIVE=OFF mise run build
 ```
+
+`mise run check` executa uma validacao rapida de matriz de build:
+- Debug com OpenMP ON
+- Debug com OpenMP OFF
+- Release com OpenMP ON
 
 ## Alocador customizado
 

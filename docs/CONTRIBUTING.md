@@ -24,11 +24,14 @@ Exemplos:
 - Manter funcoes pequenas e bem nomeadas.
 - Documentar APIs publicas com Doxygen.
 - Manter o dominio de random keys em [0,1) quando aplicavel.
+- Decoder obrigatoriamente thread-safe em execucao concorrente.
+- Consulte `docs/DECODER.md` ao alterar decoders/exemplos.
 
 ## Build e testes
 
 - Use `docs/BUILD.md` como referencia.
 - Antes de abrir PR, compile em `Release` e `Debug`.
+- Valide tambem com OpenMP ligado/desligado (`mise run check`).
 - Inclua comandos e resultados de build/testes no PR.
 
 ## Estrutura do repo

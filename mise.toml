@@ -58,47 +58,41 @@ ln -sf "$BUILD_DIR/compile_commands.json" "{{ config_root }}/compile_commands.js
 [tasks.build]
 description = "Compila (CMake --build)"
 alias = "b"
-run = '''
-mise run configure
-cmake --build "$BUILD_DIR" -- -j
-'''
+run = 'mise run configure && cmake --build "$BUILD_DIR" -- -j'
 
 [tasks.rebuild]
 description = "Clean + build"
 alias = "rb"
-run = '''
-mise run clean
-mise run build
-'''
+run = 'mise run clean && mise run build'
 
 [tasks.configure_debug]
 description = "Configura Debug"
-run = '''
-BUILD_TYPE=Debug mise run configure
-'''
+run = 'BUILD_TYPE=Debug mise run configure'
 
 [tasks.configure_release]
 description = "Configura Release"
-run = '''
-BUILD_TYPE=Release mise run configure
-'''
+run = 'BUILD_TYPE=Release mise run configure'
 
 [tasks.build_debug]
 description = "Build Debug"
-run = '''
-BUILD_TYPE=Debug mise run build
-'''
+run = 'BUILD_TYPE=Debug mise run build'
 
 [tasks.build_release]
 description = "Build Release"
-run = '''
-BUILD_TYPE=Release mise run build
-'''
+run = 'BUILD_TYPE=Release mise run build'
+
+[tasks.build_no_openmp]
+description = "Build Release com OpenMP desligado"
+run = 'HSCOPT_ENABLE_OPENMP=OFF BUILD_TYPE=Release mise run build'
+
+[tasks.build_debug_no_openmp]
+description = "Build Debug com OpenMP desligado"
+run = 'HSCOPT_ENABLE_OPENMP=OFF BUILD_TYPE=Debug mise run build'
+
+[tasks.check]
+description = "Validacao rapida de build (Debug/Release, OpenMP ON/OFF)"
+run = 'echo "[1/3] Debug com OpenMP ON" && BUILD_TYPE=Debug HSCOPT_ENABLE_OPENMP=ON mise run build && echo "[2/3] Debug com OpenMP OFF" && BUILD_TYPE=Debug HSCOPT_ENABLE_OPENMP=OFF mise run build && echo "[3/3] Release com OpenMP ON" && BUILD_TYPE=Release HSCOPT_ENABLE_OPENMP=ON mise run build'
 
 [tasks.example_hho]
 description = "Compila e executa o exemplo HHO"
-run = '''
-mise run build
-cc examples/hho_example.c -Iinclude -L"$BUILD_DIR" -lhscopt -lm -fopenmp -o /tmp/hho_example
-/tmp/hho_example | head -n 5
-'''
+run = 'mise run build && cc examples/hho_example.c -Iinclude -L"$BUILD_DIR" -lhscopt -lm -fopenmp -o /tmp/hho_example && /tmp/hho_example | head -n 5'

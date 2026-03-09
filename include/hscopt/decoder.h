@@ -52,12 +52,15 @@ typedef struct hscopt_decode_ctx {
  *
  * @return Valor da função objetivo (double).
  *
- * @note Requisitos recomendados:
+ * @note Requisitos obrigatorios:
  * - Não modificar @p keys.
  * - Não modificar @p ctx->inst.
  * - Evitar alocações e I/O no hot loop.
  * - Ser determinístico para a mesma entrada (keys, ctx).
- * - Se usado com OpenMP, deve ser thread-safe quando chamado em paralelo.
+ * - Deve ser thread-safe quando chamado em paralelo (OpenMP ou equivalente).
+ *
+ * Comportamento indefinido:
+ * - Compartilhar estado mutavel sem sincronizacao entre chamadas concorrentes.
  */
 typedef double (*hscopt_decoder_fn)(const double *keys, size_t n,
                                     hscopt_decode_ctx *ctx);
