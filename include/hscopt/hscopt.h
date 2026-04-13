@@ -11,7 +11,6 @@ extern "C" {
  * Autor: Heric da Silva Cruz
  */
 
-#include "alloc.h"
 #include "aco.h"
 #include "decoder.h"
 #include "defs.h"

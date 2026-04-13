@@ -3,7 +3,6 @@
 
 #include <stddef.h>
 
-#include "hscopt/alloc.h"
 #include "hscopt/decoder.h"
 #include "hscopt/rng.h"
 
@@ -42,14 +41,6 @@ hscopt_aco_ctx *hscopt_aco_create(size_t n_keys, size_t archive_size,
                                   unsigned max_threads, double q, double xi,
                                   hscopt_decoder_fn decoder,
                                   hscopt_decode_ctx *dctx, hscopt_rng *rng);
-
-/**
- * @brief Cria contexto ACO com alocador customizado.
- */
-hscopt_aco_ctx *hscopt_aco_create_with_allocator(
-    size_t n_keys, size_t archive_size, size_t n_ants, unsigned max_iters,
-    unsigned max_threads, double q, double xi, hscopt_decoder_fn decoder,
-    hscopt_decode_ctx *dctx, hscopt_rng *rng, const hscopt_allocator *alloc);
 
 /**
  * @brief Libera recursos do contexto ACO.

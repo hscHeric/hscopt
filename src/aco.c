@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "hscopt/alloc.h"
 #include "hscopt/defs.h"
 #include "hscopt/rng.h"
 
@@ -48,8 +47,6 @@ struct hscopt_aco_ctx {
   double best_fit;
   double *cdf;      /* [archive_size], CDF dos ranks */
   double *tmp_key;  /* [dim], buffer auxiliar */
-
-  hscopt_allocator alloc;
 };
 
 HSCOPT_INLINE double aco_randn(hscopt_aco_ctx *ctx, unsigned tid) {
@@ -254,36 +251,15 @@ hscopt_aco_ctx *hscopt_aco_create(size_t n_keys, size_t archive_size,
                                   unsigned max_threads, double q, double xi,
                                   hscopt_decoder_fn decoder,
                                   hscopt_decode_ctx *dctx, hscopt_rng *rng) {
-  return hscopt_aco_create_with_allocator(n_keys, archive_size, n_ants,
-                                          max_iters, max_threads, q, xi,
-                                          decoder, dctx, rng, NULL);
-}
-
-hscopt_aco_ctx *hscopt_aco_create_with_allocator(
-    size_t n_keys, size_t archive_size, size_t n_ants, unsigned max_iters,
-    unsigned max_threads, double q, double xi, hscopt_decoder_fn decoder,
-    hscopt_decode_ctx *dctx, hscopt_rng *rng, const hscopt_allocator *alloc) {
   if (!decoder || !rng || n_keys == 0 || archive_size == 0 || n_ants == 0 ||
       max_iters == 0 || q < 0.0 || xi < 0.0) {
     return NULL;
   }
 
-  hscopt_allocator resolved;
-  if (alloc) {
-    if (!alloc->alloc || !alloc->calloc || !alloc->free) {
-      return NULL;
-    }
-    resolved = *alloc;
-  } else {
-    hscopt_get_allocator(&resolved);
-  }
-
-  hscopt_aco_ctx *ctx =
-      (hscopt_aco_ctx *)hscopt_calloc(&resolved, 1, sizeof(*ctx));
+  hscopt_aco_ctx *ctx = (hscopt_aco_ctx *)calloc(1, sizeof(*ctx));
   if (!ctx) {
     return NULL;
   }
-  ctx->alloc = resolved;
 
   ctx->dim = n_keys;
   ctx->archive_size = archive_size;
@@ -301,21 +277,17 @@ hscopt_aco_ctx *hscopt_aco_create_with_allocator(
   ctx->decoder = decoder;
   ctx->dctx = dctx;
 
-  ctx->archive_keys =
-      (double *)hscopt_alloc(&ctx->alloc,
-                             archive_size * n_keys * sizeof(double));
-  ctx->archive_fit =
-      (double *)hscopt_alloc(&ctx->alloc, archive_size * sizeof(double));
-  ctx->cand_keys =
-      (double *)hscopt_alloc(&ctx->alloc, n_ants * n_keys * sizeof(double));
-  ctx->cand_fit = (double *)hscopt_alloc(&ctx->alloc, n_ants * sizeof(double));
-  ctx->best_keys = (double *)hscopt_alloc(&ctx->alloc, n_keys * sizeof(double));
-  ctx->cdf = (double *)hscopt_alloc(&ctx->alloc, archive_size * sizeof(double));
-  ctx->tmp_key = (double *)hscopt_alloc(&ctx->alloc, n_keys * sizeof(double));
-  ctx->rng_tls = (hscopt_rng *)hscopt_calloc(&ctx->alloc, ctx->eff_threads,
-                                             sizeof(hscopt_rng));
-  ctx->gauss_tls = (hscopt_gauss_state *)hscopt_calloc(
-      &ctx->alloc, ctx->eff_threads, sizeof(hscopt_gauss_state));
+  ctx->archive_keys = (double *)malloc(archive_size * n_keys * sizeof(double));
+  ctx->archive_fit = (double *)malloc(archive_size * sizeof(double));
+  ctx->cand_keys = (double *)malloc(n_ants * n_keys * sizeof(double));
+  ctx->cand_fit = (double *)malloc(n_ants * sizeof(double));
+  ctx->best_keys = (double *)malloc(n_keys * sizeof(double));
+  ctx->cdf = (double *)malloc(archive_size * sizeof(double));
+  ctx->tmp_key = (double *)malloc(n_keys * sizeof(double));
+  ctx->rng_tls =
+      (hscopt_rng *)calloc(ctx->eff_threads, sizeof(hscopt_rng));
+  ctx->gauss_tls =
+      (hscopt_gauss_state *)calloc(ctx->eff_threads, sizeof(hscopt_gauss_state));
 
   if (!ctx->archive_keys || !ctx->archive_fit || !ctx->cand_keys ||
       !ctx->cand_fit || !ctx->best_keys || !ctx->cdf || !ctx->tmp_key ||
@@ -341,16 +313,16 @@ hscopt_aco_ctx *hscopt_aco_create_with_allocator(
 void hscopt_aco_destroy(hscopt_aco_ctx *ctx) {
   if (!ctx) return;
 
-  hscopt_free(&ctx->alloc, ctx->archive_keys);
-  hscopt_free(&ctx->alloc, ctx->archive_fit);
-  hscopt_free(&ctx->alloc, ctx->cand_keys);
-  hscopt_free(&ctx->alloc, ctx->cand_fit);
-  hscopt_free(&ctx->alloc, ctx->best_keys);
-  hscopt_free(&ctx->alloc, ctx->cdf);
-  hscopt_free(&ctx->alloc, ctx->tmp_key);
-  hscopt_free(&ctx->alloc, ctx->rng_tls);
-  hscopt_free(&ctx->alloc, ctx->gauss_tls);
-  hscopt_free(&ctx->alloc, ctx);
+  free(ctx->archive_keys);
+  free(ctx->archive_fit);
+  free(ctx->cand_keys);
+  free(ctx->cand_fit);
+  free(ctx->best_keys);
+  free(ctx->cdf);
+  free(ctx->tmp_key);
+  free(ctx->rng_tls);
+  free(ctx->gauss_tls);
+  free(ctx);
 }
 
 int hscopt_aco_reset(hscopt_aco_ctx *ctx) {
