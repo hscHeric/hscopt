@@ -5,7 +5,7 @@ Biblioteca C de metaheuristicas para otimizacao combinatoria baseada em random k
 ## Visao geral
 
 - Representacao por random keys no hipercubo [0,1)
-- Algoritmos: Ant Colony Optimization (ACO), Harris Hawks Optimization (HHO) e RVNS
+- Algoritmos: Ant Colony Optimization (ACO), Harris Hawks Optimization (HHO), RVNS e Tabu Search (TS)
 - RNG xoshiro256** com funcoes de salto
 - API simples e focada em desempenho
 
@@ -67,6 +67,7 @@ Fluxo tipico:
 - gerar random keys em [0,1)
 - avaliar via `hscopt_decoder_fn`
 - iterar com `hscopt_hho_iterate` ou `hscopt_rvns_iterate`
+- usar `hscopt_ts_iterate` como busca local sobre uma solucao inicial
 
 Exemplos disponiveis:
 
@@ -76,6 +77,7 @@ Exemplos disponiveis:
 - `examples/knapsack_hho_example.c`
 - `examples/knapsack_rvns_example.c`
 - `examples/knapsack_aco_example.c`
+- `examples/knapsack_ts_example.c`
 
 ## Notas
 

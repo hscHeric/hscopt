@@ -13,6 +13,7 @@ add_library(hscopt STATIC
   src/aco.c
   src/hho.c
   src/rvns.c
+  src/ts.c
 )
 
 target_include_directories(hscopt PUBLIC
@@ -36,4 +37,8 @@ if (HSCOPT_BUILD_EXAMPLES)
   add_executable(knapsack_aco_example examples/knapsack_aco_example.c)
   target_link_libraries(knapsack_aco_example PRIVATE hscopt)
   hscopt_setup_target(knapsack_aco_example)
+
+  add_executable(knapsack_ts_example examples/knapsack_ts_example.c)
+  target_link_libraries(knapsack_ts_example PRIVATE hscopt)
+  hscopt_setup_target(knapsack_ts_example)
 endif()

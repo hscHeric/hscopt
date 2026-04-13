@@ -17,6 +17,7 @@ extern "C" {
 #include "hho.h"
 #include "rng.h"
 #include "rvns.h"
+#include "ts.h"
 
 #define HSCOPT_VERSION_MAJOR 0
 #define HSCOPT_VERSION_MINOR 1
