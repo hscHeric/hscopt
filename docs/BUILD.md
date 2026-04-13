@@ -1,100 +1,61 @@
 # Build
 
-Este projeto usa CMake modular e presets. O alvo principal e Linux com GCC.
+Este projeto usa um unico `CMakeLists.txt` na raiz.
 
 ## Requisitos
 
 - GCC
 - CMake >= 3.16
-- Ninja (recomendado)
 
-No Arch:
+## Build rapido
+
+Diretorio padrao de build: `build/`
+
+Release:
 
 ```bash
-sudo pacman -S ninja cmake
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 ```
 
-## Build rapido (release)
-
-Com presets (requer Ninja):
+Debug:
 
 ```bash
-cmake --preset release
-cmake --build --preset release
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
 ```
 
-Sem Ninja (Unix Makefiles):
+Se trocar entre `Release` e `Debug` no mesmo diretorio, reconfigure antes:
 
 ```bash
-cmake -S . -B build/release -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
-cmake --build build/release
-```
-
-## Build debug
-
-Com presets:
-
-```bash
-cmake --preset debug
-cmake --build --preset debug
-```
-
-Sem Ninja:
-
-```bash
-cmake -S . -B build/debug -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug
-cmake --build build/debug
+rm -rf build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
 ```
 
 ## Target gerado
 
 - Biblioteca estatica: `hscopt` (arquivo `libhscopt.a`)
 
-## Feature flags
+## Opcoes
 
-As opcoes abaixo podem ser ligadas/desligadas via `-D`:
+- `HSCOPT_BUILD_EXAMPLES`:
+  compila os exemplos; por padrao fica `ON` apenas quando `hscopt` e o projeto raiz.
+- `HSCOPT_ENABLE_OPENMP`:
+  tenta usar OpenMP quando disponivel; por padrao `ON`.
 
-- `HSCOPT_ENABLE_OPENMP` (default: ON)
-- `HSCOPT_ENABLE_LTO` (default: ON)
-- `HSCOPT_ENABLE_NATIVE` (default: ON)
-- `HSCOPT_ENABLE_FAST_MATH` (default: OFF)
-- `HSCOPT_ENABLE_WARNINGS` (default: ON)
-- `HSCOPT_ENABLE_STRICT_ALIASING` (default: ON)
-- `HSCOPT_ENABLE_VISIBILITY_HIDDEN` (default: ON)
-
-Exemplo:
+Exemplo sem OpenMP:
 
 ```bash
-cmake -S . -B build -DHSCOPT_ENABLE_LTO=OFF -DHSCOPT_ENABLE_NATIVE=OFF
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHSCOPT_ENABLE_OPENMP=OFF
 cmake --build build
 ```
 
-Notas:
+## Uso como subdiretorio
 
-- `HSCOPT_ENABLE_FAST_MATH` pode alterar resultados numericos.
-- `HSCOPT_ENABLE_NATIVE` gera binarios otimizados para a maquina atual.
+No projeto consumidor:
 
-## Usando mise
-
-O repositorio inclui tarefas em `mise.toml`:
-
-```bash
-mise run build
-mise run build_debug
-mise run build_release
-mise run build_no_openmp
-mise run build_debug_no_openmp
-mise run check
-mise run example_hho
+```cmake
+add_subdirectory(hscopt)
+target_link_libraries(meu_app PRIVATE hscopt::hscopt)
 ```
-
-As flags podem ser alteradas via variaveis de ambiente, por exemplo:
-
-```bash
-HSCOPT_ENABLE_LTO=OFF HSCOPT_ENABLE_NATIVE=OFF mise run build
-```
-
-`mise run check` executa uma validacao rapida de matriz de build:
-- Debug com OpenMP ON
-- Debug com OpenMP OFF
-- Release com OpenMP ON

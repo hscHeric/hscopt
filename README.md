@@ -44,7 +44,7 @@ add_subdirectory(external/hscopt)
 
 add_executable(meu_app src/main.c)
 
-target_link_libraries(meu_app PRIVATE hscopt)
+target_link_libraries(meu_app PRIVATE hscopt::hscopt)
 ```
 
 ### 3) No codigo
@@ -56,7 +56,14 @@ target_link_libraries(meu_app PRIVATE hscopt)
 ### 4) Build do seu projeto
 
 ```bash
-cmake -S . -B build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
+Para debug:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
 ```
 
