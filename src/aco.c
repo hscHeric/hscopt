@@ -415,3 +415,20 @@ size_t hscopt_aco_n_ants(const hscopt_aco_ctx *ctx) {
 unsigned hscopt_aco_max_threads(const hscopt_aco_ctx *ctx) {
   return ctx ? ctx->eff_threads : 1u;
 }
+
+int hscopt_aco_try_update_best(hscopt_aco_ctx *ctx, const double *keys) {
+  if (!ctx || !keys || !ctx->decoder) {
+    return -1;
+  }
+
+  const double fit = ctx->decoder(keys, ctx->dim, ctx->dctx);
+  const int improved = (fit < ctx->best_fit);
+
+  if (improved) {
+    ctx->best_fit = fit;
+    memcpy(ctx->best_keys, keys, ctx->dim * sizeof(double));
+  }
+
+  aco_insert_full_archive(ctx, keys, fit);
+  return improved ? 1 : 0;
+}

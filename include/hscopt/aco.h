@@ -106,6 +106,27 @@ size_t hscopt_aco_n_ants(const hscopt_aco_ctx *ctx);
  */
 unsigned hscopt_aco_max_threads(const hscopt_aco_ctx *ctx);
 
+/**
+ * @brief Avalia uma solucao candidata e atualiza o melhor global se melhorar.
+ *
+ * Tambem tenta inserir a solucao no arquivo ordenado do ACO, permitindo
+ * combinar o ACO com metodos externos de busca local sobre random keys.
+ *
+ * @param ctx Contexto ACO.
+ * @param keys Vetor de chaves candidato (tamanho = hscopt_aco_n_keys(ctx)).
+ *
+ * @return
+ * - 1 se o melhor global foi atualizado,
+ * - 0 se a solucao nao melhorou o melhor global,
+ * - valor negativo em caso de erro.
+ *
+ * @note
+ * - @p keys deve estar no intervalo [0,1).
+ * - A funcao nao realiza clamp automaticamente.
+ * - Esta funcao nao e thread-safe se chamada concorrentemente.
+ */
+int hscopt_aco_try_update_best(hscopt_aco_ctx *ctx, const double *keys);
+
 #ifdef __cplusplus
 }
 #endif
