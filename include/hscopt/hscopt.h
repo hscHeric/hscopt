@@ -20,9 +20,9 @@ extern "C" {
 #include "ts.h"
 
 #define HSCOPT_VERSION_MAJOR 1
-#define HSCOPT_VERSION_MINOR 0
+#define HSCOPT_VERSION_MINOR 1
 #define HSCOPT_VERSION_PATCH 0
-#define HSCOPT_VERSION_STRING "1.0.0"
+#define HSCOPT_VERSION_STRING "1.1.0"
 
 #define HSCOPT_VERSION_ENCODE(MAJ, MIN, PAT) \
   (((MAJ) << 16) | ((MIN) << 8) | (PAT))

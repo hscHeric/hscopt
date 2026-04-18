@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "decode_ctx_internal.h"
 #include "hscopt/defs.h"
 #include "hscopt/rng.h"
 
@@ -14,6 +15,7 @@
 
 #define ARCH_KEY_PTR(ctx, i) (&(ctx)->archive_keys[(i) * (ctx)->dim])
 #define CAND_KEY_PTR(ctx, i) (&(ctx)->cand_keys[(i) * (ctx)->dim])
+#define DECODE_CTX_PTR(ctx, tid) ((ctx)->dctx_tls ? &((ctx)->dctx_tls[(tid)]) : NULL)
 
 typedef struct hscopt_gauss_state {
   int has_spare;
@@ -35,6 +37,7 @@ struct hscopt_aco_ctx {
 
   hscopt_decoder_fn decoder;
   hscopt_decode_ctx *dctx;
+  hscopt_decode_ctx *dctx_tls;
 
   hscopt_rng *rng_tls;
   hscopt_gauss_state *gauss_tls;
@@ -237,7 +240,7 @@ HSCOPT_INLINE int aco_init_archive(hscopt_aco_ctx *ctx) {
       tmp_key[d] = hscopt_rng_next_u01(&ctx->rng_tls[0]);
     }
 
-    const double fit = ctx->decoder(tmp_key, ctx->dim, ctx->dctx);
+    const double fit = ctx->decoder(tmp_key, ctx->dim, DECODE_CTX_PTR(ctx, 0));
     aco_insert_sorted_prefix(ctx, i, tmp_key, fit);
   }
 
@@ -268,7 +271,7 @@ hscopt_aco_ctx *hscopt_aco_create(size_t n_keys, size_t archive_size,
   ctx->max_iters = max_iters;
   ctx->max_threads = (max_threads == 0u ? 1u : max_threads);
 #ifdef _OPENMP
-  ctx->eff_threads = ctx->max_threads;
+  ctx->eff_threads = hscopt_decode_ctx_effective_threads(ctx->max_threads, dctx);
 #else
   ctx->eff_threads = 1u;
 #endif
@@ -276,6 +279,10 @@ hscopt_aco_ctx *hscopt_aco_create(size_t n_keys, size_t archive_size,
   ctx->xi = xi;
   ctx->decoder = decoder;
   ctx->dctx = dctx;
+  if (hscopt_decode_ctx_tls_init(&ctx->dctx_tls, ctx->eff_threads, dctx) != 0) {
+    hscopt_aco_destroy(ctx);
+    return NULL;
+  }
 
   ctx->archive_keys = (double *)malloc(archive_size * n_keys * sizeof(double));
   ctx->archive_fit = (double *)malloc(archive_size * sizeof(double));
@@ -313,6 +320,7 @@ hscopt_aco_ctx *hscopt_aco_create(size_t n_keys, size_t archive_size,
 void hscopt_aco_destroy(hscopt_aco_ctx *ctx) {
   if (!ctx) return;
 
+  hscopt_decode_ctx_tls_destroy(ctx->dctx_tls, ctx->eff_threads, ctx->dctx);
   free(ctx->archive_keys);
   free(ctx->archive_fit);
   free(ctx->cand_keys);
@@ -365,7 +373,7 @@ int hscopt_aco_iterate(hscopt_aco_ctx *ctx, unsigned iters) {
 #endif
       double *const HSCOPT_RESTRICT cand = CAND_KEY_PTR(ctx, (size_t)ai);
       aco_construct_candidate(ctx, cand, tid);
-      ctx->cand_fit[(size_t)ai] = ctx->decoder(cand, ctx->dim, ctx->dctx);
+      ctx->cand_fit[(size_t)ai] = ctx->decoder(cand, ctx->dim, DECODE_CTX_PTR(ctx, tid));
     }
 
     for (size_t i = 0; i < ctx->n_ants; ++i) {
@@ -421,7 +429,7 @@ int hscopt_aco_try_update_best(hscopt_aco_ctx *ctx, const double *keys) {
     return -1;
   }
 
-  const double fit = ctx->decoder(keys, ctx->dim, ctx->dctx);
+  const double fit = ctx->decoder(keys, ctx->dim, DECODE_CTX_PTR(ctx, 0));
   const int improved = (fit < ctx->best_fit);
 
   if (improved) {

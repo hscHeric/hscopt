@@ -92,6 +92,8 @@ Exemplos disponiveis:
 - O clamp do dominio e aplicado internamente nas iteracoes do HHO e RVNS.
 - A avaliacao e feita via `hscopt_decoder_fn`.
 - O decoder deve ser thread-safe para execucao concorrente.
+- Se o decoder usar `ctx->ws`, forneca `ws_clone/ws_destroy` para ter um
+  workspace por thread; sem isso, a biblioteca cai para 1 thread efetiva.
 
 ## Contribuindo
 

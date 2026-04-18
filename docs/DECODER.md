@@ -17,6 +17,17 @@ Esta biblioteca assume que `hscopt_decoder_fn` e thread-safe por contrato.
 - Se houver estado mutavel compartilhado, usar sincronizacao explicita.
 - Evitar alocacao e I/O no hot loop.
 
+## Workspace reutilizavel (`ctx->ws`)
+
+- `ctx->ws` pode ser usado para armazenar buffers temporarios e evitar
+  alocacoes repetidas.
+- Em execucao paralela, cada thread precisa de um workspace independente.
+- Para isso, preencha `ctx->ws_clone` e `ctx->ws_destroy`.
+- A biblioteca clona o workspace base para as demais threads durante a criacao
+  do algoritmo, nunca dentro do hot loop.
+- Se `ctx->ws != NULL` e `ctx->ws_clone == NULL`, a biblioteca reduz a
+  avaliacao para uma thread efetiva para preservar corretude.
+
 ## Exemplo de risco
 
 - Incrementar contador global dentro do decoder sem lock.

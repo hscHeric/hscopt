@@ -27,6 +27,24 @@ typedef struct hscopt_instance hscopt_instance;
 typedef struct hscopt_workspace hscopt_workspace;
 
 /**
+ * @brief Clona um workspace para uso independente em outra thread.
+ *
+ * @param ws Workspace de origem.
+ * @param user Ponteiro opcional de usuário vindo de hscopt_decode_ctx.user.
+ * @return Novo workspace em caso de sucesso, ou NULL em erro.
+ */
+typedef hscopt_workspace *(*hscopt_workspace_clone_fn)(
+    const hscopt_workspace *ws, void *user);
+
+/**
+ * @brief Libera um workspace previamente alocado/clonado.
+ *
+ * @param ws Workspace a liberar.
+ * @param user Ponteiro opcional de usuário vindo de hscopt_decode_ctx.user.
+ */
+typedef void (*hscopt_workspace_destroy_fn)(hscopt_workspace *ws, void *user);
+
+/**
  * @struct hscopt_decode_ctx
  * @brief Contexto passado ao decoder.
  *
@@ -40,6 +58,9 @@ typedef struct hscopt_decode_ctx {
   void *user;  // Ponteiro opcional para dados do usuário (pode ser NULL)
   hscopt_workspace *ws;  // Workspace reutilizável (pode ser NULL), use isso
                          // para evitar alocações durante as execuções
+  hscopt_workspace_clone_fn ws_clone;  // Clona @p ws para outra thread.
+  hscopt_workspace_destroy_fn
+      ws_destroy;  // Libera workspaces criados por @p ws_clone.
 } hscopt_decode_ctx;
 
 /**
@@ -58,6 +79,8 @@ typedef struct hscopt_decode_ctx {
  * - Evitar alocações e I/O no hot loop.
  * - Ser determinístico para a mesma entrada (keys, ctx).
  * - Deve ser thread-safe quando chamado em paralelo (OpenMP ou equivalente).
+ * - Se @p ctx->ws for usado com avaliação paralela, fornecer @p ws_clone e
+ *   @p ws_destroy para que cada thread receba um workspace independente.
  *
  * Comportamento indefinido:
  * - Compartilhar estado mutavel sem sincronizacao entre chamadas concorrentes.

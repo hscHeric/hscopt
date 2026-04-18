@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "decode_ctx_internal.h"
 #include "hscopt/defs.h"
 #include "hscopt/rng.h"
 
@@ -15,6 +16,7 @@
 #define HAWK_PTR(ctx, agent) (&(ctx)->X[(agent) * (ctx)->dim])
 #define HHO_E1(t, T) (2.0 * (1.0 - ((double)(t) / (double)(T))))
 #define HHO_E0(u01) (2.0 * (u01)-1.0)
+#define DECODE_CTX_PTR(ctx, tid) ((ctx)->dctx_tls ? &((ctx)->dctx_tls[(tid)]) : NULL)
 
 struct hscopt_hho_ctx {
   size_t dim;
@@ -27,6 +29,7 @@ struct hscopt_hho_ctx {
 
   hscopt_decoder_fn decoder;
   hscopt_decode_ctx *dctx;
+  hscopt_decode_ctx *dctx_tls;
   hscopt_rng *rng;
 
   double *X;
@@ -88,7 +91,11 @@ HSCOPT_INLINE void hho_eval_all_and_update_rabbit(hscopt_hho_ctx *ctx) {
 #endif
   for (ptrdiff_t i = 0; i < (ptrdiff_t)ctx->n_agents; ++i) {
     double *const HSCOPT_RESTRICT x = HAWK_PTR(ctx, (size_t)i);
-    ctx->fitness[(size_t)i] = ctx->decoder(x, ctx->dim, ctx->dctx);
+    unsigned tid = 0;
+#ifdef _OPENMP
+    tid = (unsigned)omp_get_thread_num();
+#endif
+    ctx->fitness[(size_t)i] = ctx->decoder(x, ctx->dim, DECODE_CTX_PTR(ctx, tid));
   }
 
   for (size_t i = 0; i < ctx->n_agents; ++i) {
@@ -135,13 +142,17 @@ hscopt_hho_ctx *hscopt_hho_create(size_t n_keys, size_t n_agents,
   ctx->max_iters = max_iters;
   ctx->max_threads = (max_threads == 0u ? 1u : max_threads);
 #ifdef _OPENMP
-  ctx->eff_threads = ctx->max_threads;
+  ctx->eff_threads = hscopt_decode_ctx_effective_threads(ctx->max_threads, dctx);
 #else
   ctx->eff_threads = 1u;
 #endif
 
   ctx->decoder = decoder;
   ctx->dctx = dctx;
+  if (hscopt_decode_ctx_tls_init(&ctx->dctx_tls, ctx->eff_threads, dctx) != 0) {
+    hscopt_hho_destroy(ctx);
+    return NULL;
+  }
   ctx->rng = rng;
 
   ctx->X = (double *)malloc(sizeof(double) * (n_keys * n_agents));
@@ -178,6 +189,7 @@ hscopt_hho_ctx *hscopt_hho_create(size_t n_keys, size_t n_agents,
 void hscopt_hho_destroy(hscopt_hho_ctx *ctx) {
   if (!ctx) return;
 
+  hscopt_decode_ctx_tls_destroy(ctx->dctx_tls, ctx->eff_threads, ctx->dctx);
   free(ctx->X);
   free(ctx->fitness);
   free(ctx->rabbit_keys);
@@ -290,8 +302,8 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
         }
         HSCOPT_CLAMP_KEY_VEC(tmp1, ctx->dim);
 
-        const double fcur = ctx->decoder(Xi, ctx->dim, ctx->dctx);
-        const double f1 = ctx->decoder(tmp1, ctx->dim, ctx->dctx);
+        const double fcur = ctx->decoder(Xi, ctx->dim, DECODE_CTX_PTR(ctx, 0));
+        const double f1 = ctx->decoder(tmp1, ctx->dim, DECODE_CTX_PTR(ctx, 0));
 
         if (f1 < fcur) {
           memcpy(Xi, tmp1, ctx->dim * sizeof(double));
@@ -302,7 +314,7 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
           }
           HSCOPT_CLAMP_KEY_VEC(tmp2, ctx->dim);
 
-          const double f2 = ctx->decoder(tmp2, ctx->dim, ctx->dctx);
+          const double f2 = ctx->decoder(tmp2, ctx->dim, DECODE_CTX_PTR(ctx, 0));
           if (f2 < fcur) {
             memcpy(Xi, tmp2, ctx->dim * sizeof(double));
           }
@@ -316,8 +328,8 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
       }
       HSCOPT_CLAMP_KEY_VEC(tmp1, ctx->dim);
 
-      const double fcur = ctx->decoder(Xi, ctx->dim, ctx->dctx);
-      const double f1 = ctx->decoder(tmp1, ctx->dim, ctx->dctx);
+      const double fcur = ctx->decoder(Xi, ctx->dim, DECODE_CTX_PTR(ctx, 0));
+      const double f1 = ctx->decoder(tmp1, ctx->dim, DECODE_CTX_PTR(ctx, 0));
 
       if (f1 < fcur) {
         memcpy(Xi, tmp1, ctx->dim * sizeof(double));
@@ -328,7 +340,7 @@ int hscopt_hho_iterate(hscopt_hho_ctx *ctx, unsigned int iters) {
         }
         HSCOPT_CLAMP_KEY_VEC(tmp2, ctx->dim);
 
-        const double f2 = ctx->decoder(tmp2, ctx->dim, ctx->dctx);
+        const double f2 = ctx->decoder(tmp2, ctx->dim, DECODE_CTX_PTR(ctx, 0));
         if (f2 < fcur) {
           memcpy(Xi, tmp2, ctx->dim * sizeof(double));
         }
@@ -375,7 +387,7 @@ int hscopt_hho_try_update_rabbit(hscopt_hho_ctx *ctx, const double *keys) {
     return -1;
   }
 
-  const double f = ctx->decoder(keys, ctx->dim, ctx->dctx);
+  const double f = ctx->decoder(keys, ctx->dim, DECODE_CTX_PTR(ctx, 0));
   if (f < ctx->rabbit_fitness) {
     ctx->rabbit_fitness = f;
     memcpy(ctx->rabbit_keys, keys, ctx->dim * sizeof(double));

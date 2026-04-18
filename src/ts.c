@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "decode_ctx_internal.h"
 #include "hscopt/defs.h"
 #include "hscopt/rng.h"
 
@@ -13,6 +14,7 @@
 #endif
 
 #define TS_CAND_PTR(ctx, i) (&(ctx)->cand_keys[(i) * (ctx)->dim])
+#define DECODE_CTX_PTR(ctx, tid) ((ctx)->dctx_tls ? &((ctx)->dctx_tls[(tid)]) : NULL)
 
 struct hscopt_ts_ctx {
   size_t dim;
@@ -26,6 +28,7 @@ struct hscopt_ts_ctx {
 
   hscopt_decoder_fn decoder;
   hscopt_decode_ctx *dctx;
+  hscopt_decode_ctx *dctx_tls;
 
   hscopt_rng *rng_tls;
 
@@ -88,12 +91,16 @@ hscopt_ts_ctx *hscopt_ts_create(size_t n_keys, size_t neighborhood_size,
   ctx->max_iters = max_iters;
   ctx->max_threads = (max_threads == 0u ? 1u : max_threads);
 #ifdef _OPENMP
-  ctx->eff_threads = ctx->max_threads;
+  ctx->eff_threads = hscopt_decode_ctx_effective_threads(ctx->max_threads, dctx);
 #else
   ctx->eff_threads = 1u;
 #endif
   ctx->decoder = decoder;
   ctx->dctx = dctx;
+  if (hscopt_decode_ctx_tls_init(&ctx->dctx_tls, ctx->eff_threads, dctx) != 0) {
+    hscopt_ts_destroy(ctx);
+    return NULL;
+  }
 
   ctx->x = (double *)malloc(n_keys * sizeof(double));
   ctx->best = (double *)malloc(n_keys * sizeof(double));
@@ -128,6 +135,7 @@ hscopt_ts_ctx *hscopt_ts_create(size_t n_keys, size_t neighborhood_size,
 void hscopt_ts_destroy(hscopt_ts_ctx *ctx) {
   if (!ctx) return;
 
+  hscopt_decode_ctx_tls_destroy(ctx->dctx_tls, ctx->eff_threads, ctx->dctx);
   free(ctx->x);
   free(ctx->best);
   free(ctx->cand_keys);
@@ -147,7 +155,7 @@ int hscopt_ts_reset(hscopt_ts_ctx *ctx, const double *initial_keys) {
   memset(ctx->tabu_until, 0, ctx->dim * sizeof(unsigned));
 
   ts_init_solution(ctx->x, ctx->dim, initial_keys, &ctx->rng_tls[0]);
-  ctx->fx = ctx->decoder(ctx->x, ctx->dim, ctx->dctx);
+  ctx->fx = ctx->decoder(ctx->x, ctx->dim, DECODE_CTX_PTR(ctx, 0));
   memcpy(ctx->best, ctx->x, ctx->dim * sizeof(double));
   ctx->fbest = ctx->fx;
 
@@ -174,7 +182,7 @@ int hscopt_ts_iterate(hscopt_ts_ctx *ctx, unsigned iters) {
 #endif
       double *const HSCOPT_RESTRICT cand = TS_CAND_PTR(ctx, (size_t)ci);
       ts_generate_candidate(ctx, cand, &ctx->cand_move_idx[(size_t)ci], tid);
-      ctx->cand_fit[(size_t)ci] = ctx->decoder(cand, ctx->dim, ctx->dctx);
+      ctx->cand_fit[(size_t)ci] = ctx->decoder(cand, ctx->dim, DECODE_CTX_PTR(ctx, tid));
     }
 
     size_t fallback_idx = 0;
@@ -265,7 +273,7 @@ int hscopt_ts_try_update_best(hscopt_ts_ctx *ctx, const double *keys) {
     return -1;
   }
 
-  const double f = ctx->decoder(keys, ctx->dim, ctx->dctx);
+  const double f = ctx->decoder(keys, ctx->dim, DECODE_CTX_PTR(ctx, 0));
   if (f < ctx->fbest) {
     ctx->fbest = f;
     memcpy(ctx->best, keys, ctx->dim * sizeof(double));

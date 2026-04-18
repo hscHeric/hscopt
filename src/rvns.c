@@ -5,10 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "decode_ctx_internal.h"
 #include "hscopt/decoder.h"
 #include "hscopt/rng.h"
 
 #define CAND_PTR(ctx, tid) (&(ctx)->cand_keys[(size_t)(tid) * (ctx)->dim])
+#define DECODE_CTX_PTR(ctx, tid) ((ctx)->dctx_tls ? &((ctx)->dctx_tls[(tid)]) : NULL)
 
 struct hscopt_rvns_ctx {
   size_t dim;                 // tamanho do vetor de chaves aleatórias
@@ -18,7 +20,8 @@ struct hscopt_rvns_ctx {
   unsigned max_threads;       // número máximo de threads
   unsigned eff_threads;       // número real de threads usadas
   hscopt_decoder_fn decoder;  // decoder
-  hscopt_decode_ctx *dctx;    // contexto do decder
+  hscopt_decode_ctx *dctx;    // contexto do decoder informado pelo usuário
+  hscopt_decode_ctx *dctx_tls;  // contexto do decoder replicado por thread
   hscopt_rng *rng_tls;        // vetor de rng[eff_threads]
   double *x;                  // melhor atual
   double fx;                  // melhor função objetivo
@@ -45,7 +48,7 @@ int hscopt_rvns_reset(hscopt_rvns_ctx *ctx, const double *initial_keys) {
     }
   }
 
-  ctx->fx = ctx->decoder(ctx->x, ctx->dim, ctx->dctx);
+  ctx->fx = ctx->decoder(ctx->x, ctx->dim, DECODE_CTX_PTR(ctx, 0));
   memcpy(ctx->best, ctx->x, ctx->dim * sizeof(double));
   ctx->fbest = ctx->fx;
 
@@ -54,6 +57,7 @@ int hscopt_rvns_reset(hscopt_rvns_ctx *ctx, const double *initial_keys) {
 
 void hscopt_rvns_destroy(hscopt_rvns_ctx *ctx) {
   if (!ctx) return;
+  hscopt_decode_ctx_tls_destroy(ctx->dctx_tls, ctx->eff_threads, ctx->dctx);
   free(ctx->rng_tls);
   free(ctx->x);
   free(ctx->best);
@@ -82,13 +86,18 @@ hscopt_rvns_ctx *hscopt_rvns_create(
   ctx->max_threads = (max_threads == 0u ? 1u : max_threads);
 
 #ifdef _OPENMP
-  ctx->eff_threads = (max_threads == 0u ? 1u : max_threads);
+  ctx->eff_threads = hscopt_decode_ctx_effective_threads(
+      (max_threads == 0u ? 1u : max_threads), dctx);
 #else
   ctx->eff_threads = 1u;
 #endif /* ifdef _OPENMP */
 
   ctx->decoder = decoder;
   ctx->dctx = dctx;
+  if (hscopt_decode_ctx_tls_init(&ctx->dctx_tls, ctx->eff_threads, dctx) != 0) {
+    hscopt_rvns_destroy(ctx);
+    return NULL;
+  }
   ctx->x = (double *)malloc(n_keys * sizeof(double));
   ctx->best = (double *)malloc(n_keys * sizeof(double));
   ctx->cand_keys =
@@ -182,7 +191,7 @@ int hscopt_rvns_iterate(hscopt_rvns_ctx *ctx, unsigned iters) {
         const unsigned tid = (unsigned)tid_i;
         double *const HSCOPT_RESTRICT y = CAND_PTR(ctx, tid);
         rvns_shake(y, ctx->x, ctx->dim, k, &ctx->rng_tls[tid]);
-        ctx->cand_fit[tid] = ctx->decoder(y, ctx->dim, ctx->dctx);
+        ctx->cand_fit[tid] = ctx->decoder(y, ctx->dim, DECODE_CTX_PTR(ctx, tid));
       }
 
       unsigned best_tid = 0;
